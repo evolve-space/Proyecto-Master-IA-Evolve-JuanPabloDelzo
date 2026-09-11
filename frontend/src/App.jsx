@@ -549,7 +549,7 @@ function App() {
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>Bicing cerca de mí</h1>
-        <p>Ubicación del usuario y las tres estaciones más cercanas</p>
+        <p>Ubicación del usuario y las estaciones más cercanas</p>
       </header>
       <main className="map-container">
         {loading && (
