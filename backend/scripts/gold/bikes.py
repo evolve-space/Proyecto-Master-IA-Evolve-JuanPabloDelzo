@@ -12,13 +12,13 @@ from db_config import get_sqlalchemy_url
 
 def _import_fetch_clima_bcn():
     """
-    Importa la función fetch_clima_barcelona desde el script silver/4.fetch_clima_bcn.py.
+    Importa la función fetch_clima_barcelona desde el script silver/04_fetch_clima_bcn.py.
     
     Returns:
         Función fetch_clima_barcelona
     """
     module_path = (
-        Path(__file__).resolve().parent.parent / "silver" / "4.fetch_clima_bcn.py"
+        Path(__file__).resolve().parent.parent / "silver" / "04_fetch_clima_bcn.py"
     )
     spec = importlib.util.spec_from_file_location("fetch_clima_bcn", module_path)
     module = importlib.util.module_from_spec(spec)
@@ -134,7 +134,7 @@ def bicis(station_id: int):
 #####  EJECUCIÓN MANUAL ###########
 ###################################
 if __name__ == "__main__":
-    id_est=30
+    id_est=40
     df = bicis(id_est)
     print(f"\nEstación {id_est}:")
     print(df.tail(10))
