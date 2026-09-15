@@ -42,7 +42,6 @@ def cargar_estado_station(station_id: int):
               datetime,
               num_bikes_available_mechanical AS nbm,
               num_bikes_available_ebike AS nbe, 
-              num_docks_available AS nd,
               HOUR(datetime) AS hour,
               HOUR(datetime) + MINUTE(datetime)/60 AS h,
               dayofweek(datetime) AS day_week,
@@ -62,7 +61,6 @@ def cargar_estado_station(station_id: int):
                   OVER(ORDER BY datetime) AS lag_nbm,
               LAG(nbe,1)
                   OVER(ORDER BY datetime) AS lag_nbe,
-              nd,
               hour,
               ROUND(SIN(2*PI()*h/24),4) AS hour_sin, 
               ROUND(COS(2*PI()*h/24),4) AS hour_cos, 

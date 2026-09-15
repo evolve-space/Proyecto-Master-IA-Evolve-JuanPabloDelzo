@@ -92,7 +92,6 @@ class LSTMbicis:
             "year_cos",
         ]
         lag_cols = ["lag_nbm", "lag_nbe"]
-        docks_cols = ["nd"]
         weather_cols = [
             "temperature_c",
             "relative_humidity_2m",
@@ -102,7 +101,7 @@ class LSTMbicis:
         ]
 
         df_features = df[
-            time_cols + lag_cols + docks_cols + weather_cols + ["is_holiday", "is_imputed"]
+            time_cols + lag_cols + weather_cols + ["is_holiday", "is_imputed"]
         ].astype(float)
 
         df_features = df_features.ffill().bfill()
@@ -257,5 +256,5 @@ class LSTMbicis:
 
 
 if __name__ == "__main__":
-    modelo = LSTMbicis(station_id=34)
+    modelo = LSTMbicis(station_id=30)
     modelo.entrenar_y_predecir()
