@@ -13,6 +13,9 @@ END = "2025-09-30"
 _ES_HOLIDAYS = holidays.ES(subdiv="CT", years=range(2021, 2026))
 
 def fetch_chunk(start, end):
+    """
+    Descarga un chunk de datos de clima de Barcelona.
+    """
     params = {
         "latitude": LAT,
         "longitude": LON,
@@ -30,6 +33,9 @@ def fetch_chunk(start, end):
 
 
 def fetch_clima_barcelona(start=START, end=END):
+    """
+    Descarga los datos de clima de Barcelona.
+    """
     records = []
     current = datetime.strptime(start, "%Y-%m-%d")
     final = datetime.strptime(end, "%Y-%m-%d")

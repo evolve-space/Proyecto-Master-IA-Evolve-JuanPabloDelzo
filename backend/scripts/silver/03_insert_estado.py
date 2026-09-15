@@ -42,12 +42,18 @@ INSERT_ESTADO = """
 
 
 def _header_columns(file):
+    """
+    Lee el encabezado de un archivo CSV y devuelve una lista de nombres de columnas.
+    """
     with open(file, "r", encoding="utf-8-sig", errors="replace") as f:
         line = f.readline()
     return [col.strip().strip('"') for col in line.split(",") if col.strip()]
 
 
 def _detect_encoding(file):
+    """
+    Detecta la codificación de un archivo CSV.
+    """
     for encoding, polars_encoding in (("utf-8", "utf8"), ("cp1252", "windows-1252")):
         try:
             with file.open("r", encoding=encoding) as csv_file:
@@ -79,6 +85,9 @@ def _read_estado_batched(file):
 
 
 def _normalizar_df(df):
+    """
+    Normaliza un DataFrame de estado.
+    """
     if "status" not in df.columns:
         df = df.with_columns(pl.lit(None).cast(pl.Utf8).alias("status"))
 

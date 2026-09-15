@@ -9,6 +9,9 @@ DATABASE_NAME = "Bicing"
 
 
 def create_database(cursor):
+    """
+    Crea la base de datos Bicing si no existe.
+    """
     cursor.execute(f"DROP DATABASE IF EXISTS `{DATABASE_NAME}`")
     cursor.execute(
         f"CREATE DATABASE `{DATABASE_NAME}` "
@@ -17,6 +20,9 @@ def create_database(cursor):
 
 
 def create_tables(connection):
+    """
+    Crea las tablas informacion y estado en la base de datos Bicing.
+    """
     cursor = connection.cursor()
     cursor.execute(
         """
@@ -53,6 +59,9 @@ def create_tables(connection):
 
 
 def main():
+    """
+    Crea la base de datos Bicing y las tablas informacion y estado.
+    """
     connection = None
 
     try:

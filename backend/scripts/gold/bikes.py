@@ -133,7 +133,7 @@ def bicis(station_id: int):
 #####  EJECUCIÓN MANUAL ###########
 ###################################
 if __name__ == "__main__":
-    id_est=40
+    id_est=44
     df = bicis(id_est)
     print(f"\nEstación {id_est}:")
     print(df.tail(10))

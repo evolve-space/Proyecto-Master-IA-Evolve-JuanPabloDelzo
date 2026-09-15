@@ -55,12 +55,18 @@ INSERT_INFORMACION = """
 
 
 def _header_columns(file):
+    """
+    Lee el encabezado de un archivo CSV y devuelve una lista de nombres de columnas.
+    """
     with open(file, "r", encoding="utf-8-sig", errors="replace") as f:
         line = f.readline()
     return [col.strip().strip('"') for col in line.split(",") if col.strip()]
 
 
 def _read_informacion_csv(file):
+    """
+    Lee un archivo CSV de información y devuelve un DataFrame con las columnas presentes.
+    """
     present_cols = [col for col in _header_columns(file) if col in ATRIBUTOS]
     for encoding in ("utf8", "windows-1252", "utf8-lossy"):
         try:
@@ -78,6 +84,9 @@ def _read_informacion_csv(file):
 
 
 def _formato_cp(cp):
+    """
+    Formatea un código postal para que tenga 5 dígitos.
+    """
     if cp is None:
         return None
     cp = cp.strip()
@@ -142,6 +151,9 @@ def load_informacion():
 
 
 def insert_informacion(dataframe):
+    """
+    Inserta los datos de información en la base de datos.
+    """
     connection = None
     try:
         connection = mysql.connector.connect(**get_connection_params("Bicing"))

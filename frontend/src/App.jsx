@@ -8,8 +8,8 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import './App.css';
 
-const INFORMACION_API = 'http://127.0.0.1:5000/api/informacion';
-const PREDICCION_API = 'http://127.0.0.1:5000/api/predict';
+const INFORMACION_API = 'localhost:5000/api/informacion';
+const PREDICCION_API = 'localhost:5000/api/predict';
 
 // Servicio público OSRM auto-hospedado por routing.openstreetmap.de con el
 // perfil peatonal ("foot") ya procesado. A diferencia del demo oficial de
