@@ -10,3 +10,4 @@ scikit-learn
 tensorflow
 Flask
 Flask-Cors
+mlflow
