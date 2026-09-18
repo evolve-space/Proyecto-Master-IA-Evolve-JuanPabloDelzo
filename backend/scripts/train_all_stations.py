@@ -15,7 +15,10 @@ Requisitos:
     - Dependencias: mlflow, tensorflow, scikit-learn, pandas, sqlalchemy, etc.
 """
 
+import os
+import pickle
 import sys
+import tempfile
 import time
 import traceback
 from pathlib import Path
@@ -91,6 +94,10 @@ def entrenar_y_registrar(station_id: int):
                 mlflow.log_metric(f"pred_nbe_{h}min", pred["nbe"])
             mlflow.log_param("last_timestamp", modelo.last_timestamp)
 
+        # Guardar los escaladores usados por el modelo para poder reutilizarlos
+        # desde la API sin tener que reentrenar.
+        _loguear_scalers(modelo)
+
         # Registrar el modelo en el Model Registry
         mlflow.tensorflow.log_model(
             model=modelo.model,
@@ -99,6 +106,32 @@ def entrenar_y_registrar(station_id: int):
         )
 
     return loss, mae
+
+
+def _loguear_scalers(modelo: LSTMbicis):
+    """Serializa y guarda los escaladores del modelo como artifacts de MLflow.
+
+    La API de predicción los utiliza para escalar/desescalar los datos sin
+    tener que reentrenar el modelo.
+    """
+    with tempfile.TemporaryDirectory() as tmpdir:
+        scalers_dir = Path(tmpdir) / "scalers"
+        scalers_dir.mkdir()
+
+        scaler_x_path = scalers_dir / "scaler_x.pkl"
+        scaler_y_path = scalers_dir / "scaler_y.pkl"
+        feature_cols_path = scalers_dir / "feature_cols.pkl"
+
+        with open(scaler_x_path, "wb") as f:
+            pickle.dump(modelo.scaler_x, f)
+        with open(scaler_y_path, "wb") as f:
+            pickle.dump(modelo.scaler_y, f)
+        with open(feature_cols_path, "wb") as f:
+            pickle.dump(modelo.feature_cols, f)
+
+        mlflow.log_artifact(str(scaler_x_path), artifact_path="scalers")
+        mlflow.log_artifact(str(scaler_y_path), artifact_path="scalers")
+        mlflow.log_artifact(str(feature_cols_path), artifact_path="scalers")
 
 
 def _obtener_test_data(modelo: LSTMbicis):
