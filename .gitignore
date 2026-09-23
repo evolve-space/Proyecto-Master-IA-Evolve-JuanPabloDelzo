@@ -223,8 +223,8 @@ data/
 # Archivos de Devin
 .devin/
 
-# Notebook de consulta
-prevista.ipynb
+# Archivos de errores de entrenamiento
+errores_entrenamiento.csv
 
-# Archivo de consulta de variación de capacidades
-analisis_cap.csv
+# Archivos de prueba
+test_load_model.py

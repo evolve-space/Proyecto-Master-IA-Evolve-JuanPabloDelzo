@@ -8,8 +8,8 @@ import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import './App.css';
 
-const INFORMACION_API = 'localhost:5000/api/informacion';
-const PREDICCION_API = 'localhost:5000/api/predict';
+const INFORMACION_API = 'http://localhost:5002/api/informacion';
+const PREDICCION_API = 'http://localhost:5002/api/predict';
 
 // Servicio público OSRM auto-hospedado por routing.openstreetmap.de con el
 // perfil peatonal ("foot") ya procesado. A diferencia del demo oficial de
@@ -29,10 +29,9 @@ const BARCELONA_BOUNDARY_URL =
   'https://nominatim.openstreetmap.org/search?city=Barcelona&country=Spain&format=json&polygon_geojson=1&featureType=city&limit=1';
 
 // Nº de estaciones candidatas (por distancia en línea recta) para las que
-// se consulta la distancia real caminando. Solo necesitamos 3 finales, así
-// que 5 candidatos dan margen de sobra sin lanzar demasiadas peticiones en
-// paralelo. Se reducen para acelerar la carga inicial.
-const WALKING_CANDIDATE_COUNT = 5;
+// se consulta la distancia real caminando. Solo necesitamos 3 finales, por
+// lo que preguntar directamente por 3 reduce la llamada a OSRM.
+const WALKING_CANDIDATE_COUNT = 3;
 
 // Radio medio de la Tierra en kilómetros, usado en la fórmula de Haversine.
 const EARTH_RADIUS_KM = 6371;
@@ -272,7 +271,7 @@ const fetchWalkingDistancesTable = async (from, stations, retries = 2) => {
     let timeout;
     try {
       const controller = new AbortController();
-      timeout = setTimeout(() => controller.abort(), 8000);
+      timeout = setTimeout(() => controller.abort(), 4000);
       const res = await fetch(
         `${FOOT_TABLE_URL}/${coordinates}?annotations=distance&sources=0&destinations=${destinations}`,
         { signal: controller.signal },
@@ -426,7 +425,7 @@ function App() {
     const locationTimeout = setTimeout(() => {
       setUserLocation(randomFallbackPoint());
       setLoadingLocation(false);
-    }, 8000);
+    }, 5000);
 
     generateUserLocationOnStreet()
       .then((location) => {
@@ -543,13 +542,14 @@ function App() {
     return stations.filter((s) => !nearestIds.has(s.id));
   }, [stations, nearestStations]);
 
-  const loading = loadingStations || loadingLocation || computingNearest;
+  const loading = loadingStations || loadingLocation;
 
   return (
     <div className="dashboard">
       <header className="dashboard-header">
         <h1>Bicing cerca de mí</h1>
         <p>Ubicación del usuario y las estaciones más cercanas</p>
+        {computingNearest && <span className="nearest-loading">Calculando estaciones más cercanas…</span>}
       </header>
       <main className="map-container">
         {loading && (
@@ -562,9 +562,7 @@ function App() {
             <p className="loader-detail">
               {loadingLocation
                 ? 'Localizando tu posición en la calle…'
-                : computingNearest
-                  ? 'Calculando distancias a pie…'
-                  : 'Cargando estaciones…'}
+                : 'Cargando estaciones…'}
             </p>
           </div>
         )}
@@ -670,7 +668,7 @@ function App() {
                               <span key={i} className="spinner-dot" style={{ '--i': i }}></span>
                             ))}
                           </div>
-                          <span className="prediction-loading">Tarda unos minutos…</span>
+                          <span className="prediction-loading">Un momento por favor…</span>
                         </div>
                       ) : hasError ? (
                         <span className="prediction-error">Error: {hasError}</span>

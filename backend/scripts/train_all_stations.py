@@ -15,7 +15,10 @@ Requisitos:
     - Dependencias: mlflow, tensorflow, scikit-learn, pandas, sqlalchemy, etc.
 """
 
-import os
+#import os
+import argparse
+import csv
+import gc
 import pickle
 import sys
 import tempfile
@@ -27,6 +30,7 @@ import mlflow
 import mlflow.tensorflow
 import pandas as pd
 from sqlalchemy import create_engine
+from tensorflow.keras import backend as keras_backend
 
 # Añadir al path la carpeta scripts para importar lstm_model y silver
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -41,12 +45,14 @@ MLFLOW_EXPERIMENT_NAME = "bicing_lstm_predictions"
 
 
 def obtener_station_ids():
-    """Consulta los IDs de estación desde la tabla `informacion`."""
+    """Consulta los IDs de `estado` que se encuentran en la tabla `informacion`."""
     query = """
-        SELECT station_id
-        FROM informacion
-        WHERE station_id <> 588
-        ORDER BY station_id
+        SELECT DISTINCT station_id
+        FROM estado
+        WHERE station_id IN
+        (SELECT station_Id
+        FROM informacion)
+        ORDER BY estado.station_id
     """
     engine = create_engine(get_sqlalchemy_url())
     with engine.connect() as conn:
@@ -164,17 +170,48 @@ def _obtener_test_data(modelo: LSTMbicis):
     return X_test, y_test
 
 
+def obtener_modelos_registrados():
+    """Devuelve los nombres de todos los modelos existentes en el Registry."""
+    client = mlflow.MlflowClient()
+    return {
+        modelo.name
+        for modelo in client.search_registered_models(max_results=1000)
+    }
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--solo-faltantes", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--listar-faltantes", action="store_true")
+    parser.add_argument("--reentrenar-todos", action="store_true")
+    args = parser.parse_args()
+
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+    client = mlflow.MlflowClient()
+    experiment = client.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
+    if experiment is not None and experiment.lifecycle_stage == "deleted":
+        client.restore_experiment(experiment.experiment_id)
     mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
 
     print("Obteniendo lista de estaciones...")
     station_ids = obtener_station_ids()
+    if not args.reentrenar_todos or args.listar_faltantes:
+        modelos_registrados = obtener_modelos_registrados()
+        station_ids = [
+            station_id
+            for station_id in station_ids
+            if f"est_{station_id}" not in modelos_registrados
+        ]
+        print(f"Estaciones sin modelo registrado ({len(station_ids)}): {station_ids}")
+        if args.listar_faltantes:
+            return
+
     total = len(station_ids)
-    print(f"Estaciones encontradas: {total}\n")
+    print(f"Estaciones a entrenar: {total}\n")
 
     exitosas = 0
     fallidas = []
+    errores = []
 
     for idx, station_id in enumerate(station_ids, start=1):
         print(f"[{idx}/{total}] Entrenando estación {station_id} (est_{station_id})...")
@@ -190,14 +227,33 @@ def main():
             exitosas += 1
         except Exception as e:
             elapsed = time.time() - t0
+            error_traceback = traceback.format_exc()
             print(f"  -> ERROR en {elapsed:.1f}s: {e}")
-            traceback.print_exc()
+            print(error_traceback)
             fallidas.append(station_id)
+            errores.append(
+                {
+                    "station_id": station_id,
+                    "tipo_error": type(e).__name__,
+                    "mensaje": str(e),
+                    "duracion_segundos": round(elapsed, 1),
+                    "traceback": error_traceback,
+                }
+            )
+        finally:
+            keras_backend.clear_session()
+            gc.collect()
 
     print(f"\n{'='*60}")
     print(f"Resumen: {exitosas}/{total} modelos registrados correctamente.")
     if fallidas:
         print(f"Estaciones con error ({len(fallidas)}): {fallidas}")
+        reporte_path = Path(__file__).resolve().parent / "errores_entrenamiento.csv"
+        with open(reporte_path, "w", newline="", encoding="utf-8") as reporte:
+            writer = csv.DictWriter(reporte, fieldnames=errores[0].keys())
+            writer.writeheader()
+            writer.writerows(errores)
+        print(f"Detalle de errores guardado en: {reporte_path}")
     print(f"{'='*60}")
 
 

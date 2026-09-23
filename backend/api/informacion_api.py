@@ -4,7 +4,7 @@ predicciones de disponibilidad de bicis (mecánicas y eléctricas) a 5 y
 10 minutos para una estación dada.
 
 Endpoints disponibles:
-    GET /api/informacion  -> lista de estaciones con las columnas:
+    GET /api/informacion  -> lista de estaciones con modelo registrado en MLflow:
         station_id, latitud, longitud, address, post_code, capacity
 
     POST /api/predict
@@ -15,36 +15,66 @@ Las credenciales de acceso a MySQL se leen desde el archivo `.env` en la
 raíz del proyecto, a través de `backend/scripts/silver/db_config.py`.
 """
 
+import pickle
 import sys
 import traceback
 from pathlib import Path
 
+import mlflow
+import mlflow.tensorflow
 import mysql.connector
+import numpy as np
+import pandas as pd
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "silver"))
-from db_config import get_connection_params, DB_NAME
+from db_config import DB_NAME, get_connection_params
 
-# Añadimos al path la carpeta que contiene main.py (backend/scripts).
+# Añadimos al path la carpeta que contiene lstm_model.py (backend/scripts).
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from main import LSTMbicis
+from lstm_model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
+
+MLFLOW_TRACKING_URI = "http://localhost:5000"
+MLFLOW_EXPERIMENT_NAME = "bicing_lstm_predictions"
 
 app = Flask(__name__)
 CORS(app)  # Permite que el frontend (React, otro origen) consuma esta API
 
 COLUMNS = ["station_id", "latitud", "longitud", "address", "post_code", "capacity"]
 
+# Configurar MLflow una sola vez al iniciar la API.
+mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
+mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+
+
+def _obtener_estaciones_con_modelo():
+    """Devuelve los station_id que tienen un modelo registrado en MLflow."""
+    client = mlflow.MlflowClient()
+    return {
+        int(modelo.name.replace("est_", ""))
+        for modelo in client.search_registered_models(max_results=1000)
+        if modelo.name.startswith("est_") and modelo.name.replace("est_", "").isdigit()
+    }
+
 
 @app.route("/api/informacion", methods=["GET"])
 def obtener_informacion():
-    """Devuelve, en formato JSON, las columnas seleccionadas de la tabla `informacion`."""
-    query = f"SELECT {', '.join(COLUMNS)} FROM informacion WHERE station_id <> 588"
-    # Descubrí que aquella estación no registra datos
+    """Devuelve, en formato JSON, las estaciones que tienen modelo en MLflow."""
+    estaciones_con_modelo = _obtener_estaciones_con_modelo()
+    if not estaciones_con_modelo:
+        return jsonify({})
+
+    placeholders = ", ".join("%s" for _ in estaciones_con_modelo)
+    query = f"""
+    SELECT {", ".join(COLUMNS)}
+    FROM informacion
+    WHERE station_id IN ({placeholders}) AND station_id NOT IN (521,529,545)
+    """
     conn = mysql.connector.connect(**get_connection_params(DB_NAME))
     try:
         cursor = conn.cursor(dictionary=True)
-        cursor.execute(query)
+        cursor.execute(query, tuple(sorted(estaciones_con_modelo)))
         filas = cursor.fetchall()
         cursor.close()
     finally:
@@ -56,6 +86,33 @@ def obtener_informacion():
     }
 
     return jsonify(estaciones)
+
+
+def _cargar_run_reciente(station_id: int):
+    """Busca el run de MLflow más reciente para la estación dada."""
+    experiment = mlflow.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
+    if experiment is None:
+        return None
+
+    runs = mlflow.search_runs(
+        experiment_ids=[experiment.experiment_id],
+        filter_string=f"tags.`mlflow.runName` = 'est_{station_id}'",
+        order_by=["start_time DESC"],
+        max_results=1,
+    )
+    if runs.empty:
+        return None
+    return runs.iloc[0].run_id
+
+
+def _cargar_scaler(run_id: str, nombre: str):
+    """Descarga y deserializa un scaler guardado como artifact de MLflow."""
+    artifact_path = f"scalers/{nombre}.pkl"
+    local_path = mlflow.artifacts.download_artifacts(
+        run_id=run_id, artifact_path=artifact_path
+    )
+    with open(local_path, "rb") as f:
+        return pickle.load(f)
 
 
 @app.route("/api/predict", methods=["POST"])
@@ -73,16 +130,57 @@ def predict():
         return jsonify({"error": "station_id debe ser un número entero"}), 400
 
     try:
-        modelo = LSTMbicis(station_id=station_id)
-        modelo.entrenar_y_predecir()
+        run_id = _cargar_run_reciente(station_id)
+        if run_id is None:
+            return jsonify(
+                {"error": f"No se encontró modelo entrenado para la estación {station_id}"}
+            ), 404
 
-        if not modelo.predictions:
-            return jsonify({"error": "No se pudieron generar predicciones"}), 500
+        # Cargar modelo y escaladores desde MLflow.
+        model = mlflow.tensorflow.load_model(f"runs:/{run_id}/model")
+        scaler_x = _cargar_scaler(run_id, "scaler_x")
+        scaler_y = _cargar_scaler(run_id, "scaler_y")
+        feature_cols = _cargar_scaler(run_id, "feature_cols")
+
+        # Obtener datos históricos de la estación.
+        bicis = LSTMbicis._import_bicis()
+        df = bicis(station_id)
+
+        # Preparar features con la misma lógica usada en entrenamiento.
+        modelo = LSTMbicis(station_id=station_id)
+        df_features, _ = modelo.preparar_datos(df)
+        df_features = df_features[feature_cols]
+
+        # Escalar y construir la última ventana de entrada.
+        features_scaled = scaler_x.transform(df_features)
+        ultima_ventana = features_scaled[-LOOKBACK:].reshape(
+            1, LOOKBACK, len(feature_cols)
+        )
+
+        # Predecir y desescalar.
+        horizon_steps = [h // STEP_MINUTES for h in HORIZONTES_MIN]
+        pred_scaled = model.predict(ultima_ventana, verbose=0)[0]
+        pred_matrix_scaled = pred_scaled.reshape(len(horizon_steps), len(TARGET_COLS))
+        pred_matrix = scaler_y.inverse_transform(pred_matrix_scaled)
+
+        ultimo_timestamp = df.index[-1]
+        predictions = []
+        for h_min, fila in zip(HORIZONTES_MIN, pred_matrix):
+            pred_dt = ultimo_timestamp + pd.Timedelta(minutes=h_min)
+            mech_pred, ebike_pred = np.maximum(fila, 0)
+            predictions.append(
+                {
+                    "horizon_minutes": int(h_min),
+                    "timestamp": pred_dt.isoformat(),
+                    "nbm": float(mech_pred),
+                    "nbe": float(ebike_pred),
+                }
+            )
 
         return jsonify({
             "station_id": station_id,
-            "last_timestamp": modelo.last_timestamp,
-            "predictions": modelo.predictions,
+            "last_timestamp": ultimo_timestamp.isoformat(),
+            "predictions": predictions,
         })
     except Exception as e:
         traceback.print_exc()
@@ -90,4 +188,4 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(host="0.0.0.0", port=5002, debug=True)
