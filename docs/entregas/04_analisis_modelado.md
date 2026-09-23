@@ -60,7 +60,7 @@ Este proyecto es, en esencia, un problema de **predicción de series temporales 
 
 ### 2.4 Visualizaciones, indicadores o conclusiones para el MVP
 
-- **Serie temporal con banda de predicción**: `nbm`/`nbe` reales vs. predichos a +5 y +10 min para una estación seleccionable, tal como ya imprime `backend/scripts/main.py` (`entrenar_y_predecir`) por consola — candidato a gráfico en el frontend React del MVP.
+- **Serie temporal con banda de predicción**: `nbm`/`nbe` reales vs. predichos a +5 y +10 min para una estación seleccionable, tal como ya imprime `backend/scripts/lstm_model.py` (`entrenar_y_predecir`) por consola — candidato a gráfico en el frontend React del MVP.
 - **Heatmap hora × día de la semana** de disponibilidad media, para justificar visualmente la estacionalidad horaria/semanal.
 - **Indicador de error del modelo**: MAE/MSE en test frente al MAE de la heurística naive (persistencia del último valor), como métrica de "utilidad mínima" del modelo.
 - **Indicador de calidad de datos por estación**: % de `is_imputed`, usado como filtro para decidir qué estaciones se muestran como fiables en el MVP.
@@ -68,13 +68,13 @@ Este proyecto es, en esencia, un problema de **predicción de series temporales 
 ### 2.5 Cómo ayuda este análisis a comprender el problema y apoyar el modelado
 
 - Los análisis de **tendencia y estacionalidad** confirman (o corrigen) las variables temporales cíclicas ya incorporadas en `gold/bikes.py`, evitando incluir features sin justificación empírica.
-- El análisis de **autocorrelación** valida la elección del `LOOKBACK` (24 pasos) y de los horizontes de predicción (5 y 10 min) definidos en `backend/scripts/main.py`, o motiva su ajuste si los datos muestran otro comportamiento.
+- El análisis de **autocorrelación** valida la elección del `LOOKBACK` (24 pasos) y de los horizontes de predicción (5 y 10 min) definidos en `backend/scripts/lstm_model.py`, o motiva su ajuste si los datos muestran otro comportamiento.
 - El análisis de **relación con clima y festivos** decide qué variables exógenas merece la pena mantener en el vector de features, evitando sobreajustar el modelo con variables sin aporte real.
 - El análisis de **calidad de datos** (huecos e imputación) es imprescindible antes de confiar en las métricas de evaluación del modelo: un MAE bajo en una estación con muchos valores imputados puede ser engañoso.
 
 ### 2.6 Justificación de la arquitectura de modelado: LSTM frente a ARIMA y RNN simple
 
-Antes de implementar la clase `LSTMbicis` (`backend/scripts/main.py`) se valoraron dos alternativas: el enfoque estadístico clásico **ARIMA/SARIMA(X)** y una **RNN simple** (recurrente "vanilla", sin puertas). Ambas se descartaron por motivos distintos, directamente relacionados con la naturaleza del problema y de los datos descritos en las secciones anteriores:
+Antes de implementar la clase `LSTMbicis` (`backend/scripts/lstm_model.py`) se valoraron dos alternativas: el enfoque estadístico clásico **ARIMA/SARIMA(X)** y una **RNN simple** (recurrente "vanilla", sin puertas). Ambas se descartaron por motivos distintos, directamente relacionados con la naturaleza del problema y de los datos descritos en las secciones anteriores:
 
 | Criterio | ARIMA / SARIMAX | RNN simple | LSTM (elegido) |
 |---|---|---|---|
@@ -96,7 +96,7 @@ Antes de implementar la clase `LSTMbicis` (`backend/scripts/main.py`) se valorar
 
 ### 3.1 Entrada (`X`)
 
-Cada muestra de entrada es una secuencia de `LOOKBACK = 24` pasos (2 horas a resolución de 5 min), donde cada paso temporal contiene el siguiente vector de 14 features (generado por `LSTMbicis.preparar_datos`, `backend/scripts/main.py`):
+Cada muestra de entrada es una secuencia de `LOOKBACK = 24` pasos (2 horas a resolución de 5 min), donde cada paso temporal contiene el siguiente vector de 14 features (generado por `LSTMbicis.preparar_datos`, `backend/scripts/lstm_model.py`):
 
 | Grupo | Features | Nº |
 |---|---|---|
@@ -134,11 +134,11 @@ Forma del tensor de salida: `(n_muestras, 4)`, generado por `LSTMbicis.construir
 
 ### 5.1 Problema detectado y corregido
 
-En una versión previa de `backend/scripts/main.py`, el mismo bloque temporal final de la serie se usaba **dos veces**: como `validation_data` del `EarlyStopping` (para decidir cuándo parar el entrenamiento y qué pesos restaurar) y, a continuación, como conjunto de **test** para reportar el error final (`model.evaluate`). Esto es una **fuga de información en la selección de modelo**: al haber influido en qué pesos se restauran (`restore_best_weights=True`), ese bloque deja de ser una muestra "no vista", y el MAE/MSE reportado como "test" deja de ser una estimación independiente del error de generalización.
+En una versión previa de `backend/scripts/lstm_model.py`, el mismo bloque temporal final de la serie se usaba **dos veces**: como `validation_data` del `EarlyStopping` (para decidir cuándo parar el entrenamiento y qué pesos restaurar) y, a continuación, como conjunto de **test** para reportar el error final (`model.evaluate`). Esto es una **fuga de información en la selección de modelo**: al haber influido en qué pesos se restauran (`restore_best_weights=True`), ese bloque deja de ser una muestra "no vista", y el MAE/MSE reportado como "test" deja de ser una estimación independiente del error de generalización.
 
 ### 5.2 Corrección aplicada
 
-`LSTMbicis` ahora separa la serie en **tres tramos temporales disjuntos y en orden cronológico** (`train → val → test`, ver `backend/scripts/main.py`, método `entrenar_y_predecir`):
+`LSTMbicis` ahora separa la serie en **tres tramos temporales disjuntos y en orden cronológico** (`train → val → test`, ver `backend/scripts/lstm_model.py`, método `entrenar_y_predecir`):
 
 ```
 [ ---------------- train ---------------- ][ --- val --- ][ --- test --- ]
@@ -184,5 +184,5 @@ Al ser una serie temporal con autocorrelación fuerte (`lag_nbm`/`lag_nbe`, ver 
 
 - **Respecto a `02_datos_necesarios.md`**: se confirma que las variables meteorológicas ya redefinidas en esa entrega (`temperature_c`, `relative_humidity_2m`, `rain`, `cloud_cover`, `wind_speed_10m`) son precisamente las que este análisis evaluará por su relación con la disponibilidad; no se añaden ni eliminan fuentes de datos nuevas.
 - **Respecto a `03_modelo_datos.md`**: la inclusión de `nd` (anclajes libres) como feature de entrada, ya documentada en la sección 5.2 de esa entrega, se somete aquí a verificación empírica (hipótesis H4) en lugar de asumirse sin más. Si el análisis mostrara que `nd` es completamente redundante, se actualizaría `03_modelo_datos.md` para reflejar su exclusión, dejando constancia del motivo.
-- **Corrección sobre `03_modelo_datos.md` (sección 5.2)**: esa entrega describía un split cronológico 90/10 (train/test) en el que el propio tramo de test se pasaba como `validation_data` al `EarlyStopping`. Esta entrega **corrige** esa decisión: `backend/scripts/main.py` ahora separa **tres** tramos cronológicos independientes (train/val/test, sección 5 de este documento), de forma que el test nunca participa en la selección del modelo. `03_modelo_datos.md` debe entenderse actualizado por esta entrega en ese punto concreto.
+- **Corrección sobre `03_modelo_datos.md` (sección 5.2)**: esa entrega describía un split cronológico 90/10 (train/test) en el que el propio tramo de test se pasaba como `validation_data` al `EarlyStopping`. Esta entrega **corrige** esa decisión: `backend/scripts/lstm_model.py` ahora separa **tres** tramos cronológicos independientes (train/val/test, sección 5 de este documento), de forma que el test nunca participa en la selección del modelo. `03_modelo_datos.md` debe entenderse actualizado por esta entrega en ese punto concreto.
 

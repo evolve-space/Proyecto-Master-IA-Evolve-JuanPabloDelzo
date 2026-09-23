@@ -140,25 +140,25 @@ Station information  +  Station status  +  Weather
 ## 📁 Repository structure
 
 ```
-📂 Proyecto-Master-DataScience-Evolve-JuanPabloDelzo/
+📂 Proyecto-Bicing/
 │
-├── 📄 README.md                       ← You are here
-├── 📄 .env.example                    ← MySQL credentials template
-├── 📄 requirements.txt                ← Backend dependencies
+├── 📄 README.md                         ← You are here
+├── 📄 .env.example                      ← MySQL credentials template
+├── 📄 requirements.txt                  ← Backend dependencies
 │
-├── 📂 data/                           ← Raw data (ignored in Git)
-│   ├── 📂 estado/                     ← Monthly station history
-│   └── 📂 informacion/                ← Station characteristics
+├── 📂 data/                             ← Raw data (ignored in Git)
+│   ├── 📂 estado/                       ← Monthly station history
+│   └── 📂 informacion/                  ← Station characteristics
 │
-├── 📂 docs/                           ← Master's deliverables
+├── 📂 docs/                             ← Master's deliverables
 │   └── 📂 entregas/
-│       ├── 📄 01_idea_producto.md     ← Product description
-│       ├── 📄 02_datos_necesarios.md  ← Data description
-│       ├── 📄 03_modelo_datos.md      ← Data model and Gold layer
-│       ├── 📄 04_analisis_modelado.md
-│       └── 📄 05_diseño_frontal.md    ← Frontend design
+│       ├── 📄 01_idea_producto.md       ← Product description
+│       ├── 📄 02_datos_necesarios.md    ← Data description
+│       ├── 📄 03_modelo_datos.md        ← Data model, Gold layer, API & MLflow
+│       ├── 📄 04_analisis_modelado.md   ← Modeling strategy
+│       └── 📄 05_diseño_frontal.md      ← Frontend design
 │
-├── 📂 frontend/                       ← User interface in React + Vite
+├── 📂 frontend/                         ← User interface in React + Vite
 │   ├── 📄 package.json
 │   ├── 📄 pnpm-lock.yaml
 │   ├── 📄 vite.config.js
@@ -169,19 +169,26 @@ Station information  +  Station status  +  Weather
 │       ├── 📄 main.jsx
 │       └── 📂 assets/
 │
-└── 📂 backend/scripts/                ← Loading and modeling scripts (backend)
-    │
-    ├── 📄 main.py                     ← LSTMbicis class: trains and predicts
-    │
-    ├── 📂 silver/                     ← Bronze → Silver load (MySQL)
-    │   ├── 1.create_db.py
-    │   ├── 2.insert_informacion.py
-    │   ├── 3.insert_estado.py
-    │   ├── 4.fetch_clima_bcn.py
-    │   └── db_config.py               ← MySQL credentials via .env
-    │
-    └── 📂 gold/                       ← Feature preparation
-        └── bikes.py
+├── 📂 backend/                          ← Backend services
+│   ├── 📂 api/                          ← REST APIs
+│   │   ├── informacion_api.py         ← Stations + predictions (port 5002)
+│   │   └── bicis_pred_api.py          ← Standalone predictions API (port 5001)
+│   │
+│   ├── � scripts/                    ← Training and feature scripts
+│   │   ├── lstm_model.py              ← LSTMbicis class: trains and predicts
+│   │   ├── train_all_stations.py      ← Trains one model per station and registers it in MLflow
+│   │   ├── gold/
+│   │   │   └── bikes.py               ← Feature engineering per station
+│   │   └── silver/                    ← Bronze → Silver load (MySQL)
+│   │       ├── 1.create_db.py
+│   │       ├── 2.insert_informacion.py
+│   │       ├── 3.insert_estado.py
+│   │       ├── 4.fetch_clima_bcn.py
+│   │       └── db_config.py           ← MySQL credentials via .env
+│   │
+│   └── 📂 back_testing/
+│
+└── 📄 mlflow.db                         ← MLflow tracking database (local, ignored in Git)
 ```
 
 ## ▶️ How to run

@@ -186,14 +186,17 @@ Los scripts de la carpeta `backend/scripts/silver/` leen los archivos CSV de la 
 
 ---
 
-## 5. Capa Gold — Feature engineering y predicción
+## 5. Capa Gold — Feature engineering, entrenamiento y predicción
 
-La capa Gold **no persiste resultados en la base de datos**. Se compone de dos scripts:
+La capa Gold **no persiste resultados en tablas MySQL**, sino en el **Model Registry de MLflow**. Se compone de:
 
 - `backend/scripts/gold/bikes.py`: construye el dataset de features por estación (SQL + Python) y lo une con el clima.
-- `backend/scripts/main.py`: entrena el modelo LSTM y genera la predicción multi-horizonte (implementación actual, no una propuesta).
+- `backend/scripts/lstm_model.py`: clase `LSTMbicis` que encapsula entrenamiento y predicción multi-horizonte.
+- `backend/scripts/train_all_stations.py`: orquestador que entrena y registra un modelo por estación en MLflow bajo el nombre `est_{station_id}`.
 
-Ambos se ejecutan a demanda; no existen tablas `gold.*` en MySQL. El frontend React en `frontend/` consume tanto la información de estaciones como las predicciones a través de la API REST implementada en `backend/api/informacion_api.py` (ver sección 5.4).
+Cada modelo registrado incluye, además del modelo Keras, los escaladores `scaler_x`, `scaler_y` y la lista `feature_cols` como artifacts, para que la API pueda replicar exactamente el preprocesamiento sin reentrenar.
+
+El frontend React consume la información de estaciones y las predicciones a través de la API REST `backend/api/informacion_api.py` (puerto 5002).
 
 ### 5.1 `backend/scripts/gold/bikes.py` — construcción de features
 
@@ -218,7 +221,7 @@ La función `bicis(station_id)`:
 
 El resultado es un único `DataFrame`, indexado por `datetime`, con todas las features listas para el modelo.
 
-### 5.2 `backend/scripts/main.py` — modelo LSTM multi-horizonte
+### 5.2 `backend/scripts/lstm_model.py` — modelo LSTM multi-horizonte
 
 La clase `LSTMbicis` encapsula todo el pipeline de entrenamiento y predicción:
 
@@ -226,6 +229,7 @@ La clase `LSTMbicis` encapsula todo el pipeline de entrenamiento y predicción:
 modelo = LSTMbicis(station_id=30)
 modelo.entrenar_y_predecir()
 # tras entrenar: modelo.model, modelo.scaler_x, modelo.scaler_y, modelo.df
+# Idealmente, registrar a continuación en MLflow con train_all_stations.py
 ```
 
 - **Targets** (`TARGET_COLS`): `nbm` y `nbe` (bicis mecánicas y eléctricas disponibles).
@@ -236,13 +240,31 @@ modelo.entrenar_y_predecir()
 - **Entrenamiento**: split cronológico en **tres tramos disjuntos** train/val/test (80/10/10 por defecto, `val_frac`/`test_frac`), con `EarlyStopping` sobre `val_loss` monitorizado únicamente en el tramo de validación; el tramo de test nunca participa en el entrenamiento ni en la selección de pesos. *(Actualizado en `04_analisis_modelado.md`, sección 5: la versión inicial reutilizaba el tramo de test como `validation_data`, lo que introducía fuga de información en la métrica final; ver detalle y justificación de la corrección en esa entrega.)*
 - **Post-procesado**: las predicciones se recortan a `>= 0` (`np.maximum(fila, 0)`), ya que `nbm`/`nbe` no pueden ser negativos.
 
-### 5.3 API implementada
+### 5.3 `backend/scripts/train_all_stations.py` — orquestador MLflow
 
-La API REST ya está implementada en `backend/api/informacion_api.py` (Flask, puerto 5000) y expone los endpoints consumidos por el frontend:
+Entrena y registra un modelo por cada `station_id` encontrado en MySQL:
+
+- Crea un run en MLflow con nombre `est_{station_id}`.
+- Guarda hiperparámetros, métricas de test y predicciones de referencia.
+- Serializa `scaler_x`, `scaler_y` y `feature_cols` como artifacts bajo la ruta `scalers/`.
+- Registra el modelo Keras en el Model Registry con `registered_model_name="est_{station_id}"`.
+
+Soporta dos modos:
+
+```bash
+python backend/scripts/train_all_stations.py              # entrena solo estaciones sin modelo
+python backend/scripts/train_all_stations.py --reentrenar-todos  # fuerza reentrenamiento completo
+```
+
+### 5.4 API implementada
+
+### 5.5 API implementada
+
+La API REST está implementada en `backend/api/informacion_api.py` (Flask, puerto 5002) y expone los endpoints consumidos por el frontend. Existe también una API alternativa standalone en `backend/api/bicis_pred_api.py` (puerto 5001).
 
 #### `GET /api/informacion`
 
-Devuelve el listado de estaciones con `station_id`, `latitud`, `longitud`, `address`, `post_code` y `capacity`.
+Devuelve el listado de estaciones que tienen un modelo registrado en MLflow, con `station_id`, `latitud`, `longitud`, `address`, `post_code` y `capacity`.
 
 ```json
 {
@@ -253,7 +275,7 @@ Devuelve el listado de estaciones con `station_id`, `latitud`, `longitud`, `addr
 
 #### `POST /api/predict`
 
-Devuelve la predicción para una estación concreta a 5 y 10 minutos, envolviendo `LSTMbicis.entrenar_y_predecir()`.
+Carga el modelo `est_{station_id}`, los escaladores y las columnas de features desde MLflow, prepara la última ventana de datos disponible y devuelve la predicción a 5 y 10 minutos.
 
 **Cuerpo de la petición:**
 
@@ -266,7 +288,7 @@ Devuelve la predicción para una estación concreta a 5 y 10 minutos, envolviend
 ```json
 {
   "station_id": 30,
-  "last_timestamp": "2025-09-30 21:51:23",
+  "last_timestamp": "2025-09-30T21:51:23",
   "predictions": [
     { "horizon_minutes": 5,  "timestamp": "...", "nbm": 11.24, "nbe": 0.44 },
     { "horizon_minutes": 10, "timestamp": "...", "nbm": 11.27, "nbe": 0.61 }
@@ -274,7 +296,9 @@ Devuelve la predicción para una estación concreta a 5 y 10 minutos, envolviend
 }
 ```
 
-### 5.4 Flujo de la capa Gold
+> La API ya no reentrena el modelo en cada petición; lo carga desde MLflow, por lo que la respuesta es de segundos en lugar de minutos.
+
+### 5.6 Flujo de la capa Gold
 
 ```
 Silver (MySQL: estado + informacion) ──┐
@@ -292,18 +316,22 @@ Silver (MySQL: estado + informacion) ──┐
               API REST (backend/api/informacion_api.py) ──► Frontend React
 ```
 
-### 5.5 Relación capa Gold con el resto
+### 5.7 Relación capa Gold con el resto
 
 - `gold/bikes.py` consume `estado` e `informacion` (FK) de la capa Silver, y el clima de Open-Meteo.
-- `main.py` consume el `DataFrame` de `bikes.py` y entrena/predice sin persistir nada en MySQL.
-- Las predicciones se exponen vía la API REST de `backend/api/informacion_api.py` y ya son consumidas por el frontend React.
+- `lstm_model.py` consume el `DataFrame` de `bikes.py` y entrena/predice.
+- `train_all_stations.py` registra cada modelo entrenado en MLflow bajo `est_{station_id}` junto con sus escaladores.
+- `backend/api/informacion_api.py` carga el modelo, los escaladores y los datos históricos desde MLflow/MySQL para servir predicciones sin reentrenar.
+- El frontend React consume los endpoints en `http://localhost:5002`.
 
-### 5.6 Ejemplo de consumo desde React (actual)
+### 5.8 Ejemplo de consumo desde React (actual)
 
 ```javascript
+const API_URL = 'http://localhost:5002';
+
 // Llamada POST a /api/predict
 async function getPrediction(stationId) {
-  const response = await fetch(`${import.meta.env.VITE_API_URL}/api/predict`, {
+  const response = await fetch(`${API_URL}/api/predict`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ station_id: stationId }),

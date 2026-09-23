@@ -1,3 +1,0 @@
-MLFlow
-cd C:/Users/juand
-mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-artifact-root C:/Users/juand/mlartifacts --serve-artifacts --host 127.0.0.1 --port 5000

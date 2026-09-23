@@ -43,7 +43,7 @@ En fase de desarrollo, se genera un punto aleatorio dentro del término municipa
 
 ### 4.3 Selección de las tres estaciones más cercanas
 
-1. Se ordenan las estaciones por distancia en línea recta (Haversine) y se toman las 5 primeras como candidatas.
+1. Se ordenan las estaciones por distancia en línea recta (Haversine) y se toman las 3 primeras como candidatas.
 2. Se consulta la distancia real caminando mediante el endpoint `OSRM /routed-foot/table` en una sola petición.
 3. Se ordenan por distancia peatonal y se conservan las 3 más cercanas.
 4. Si OSRM no responde, se conserva la distancia en línea recta como aproximación y se indica visualmente.
@@ -58,7 +58,7 @@ En fase de desarrollo, se genera un punto aleatorio dentro del término municipa
 
 ### 4.5 Predicción
 
-Al hacer clic en una estación destacada se llama a `POST /api/predict` enviando el `station_id`. Mientras el modelo LSTM reentrena y predice, se muestra un indicador de carga. Al recibir la respuesta se muestra una tabla con:
+Al hacer clic en una estación destacada se llama a `POST /api/predict` enviando el `station_id`. La API carga el modelo `est_{station_id}` y los escaladores desde MLflow, prepara la última ventana disponible y devuelve la predicción en segundos. Al recibir la respuesta se muestra una tabla con:
 
 - Bicicletas mecánicas a +5 y +10 minutos.
 - Bicicletas eléctricas a +5 y +10 minutos.
@@ -75,14 +75,20 @@ Cada fila de la tabla lleva un icono de `lucide-react` para facilitar la lectura
 
 ## 5. Integración con el backend
 
-El frontend espera el backend Flask en `http://127.0.0.1:5000`:
+El frontend espera el backend Flask en `http://127.0.0.1:5002`:
 
-- `GET /api/informacion`: listado de estaciones con coordenadas, dirección, código postal y capacidad.
-- `POST /api/predict`: predicción para un `station_id` concreto.
+- `GET /api/informacion`: listado de estaciones con coordenadas, dirección, código postal y capacidad. Solo se devuelven las estaciones que tienen un modelo registrado en MLflow.
+- `POST /api/predict`: predicción para un `station_id` concreto, cargando el modelo desde MLflow.
+
+MLflow debe estar ejecutándose previamente en `http://127.0.0.1:5000` con el comando:
+
+```bash
+mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-artifact-root C:/Users/juand/mlartifacts --serve-artifacts --host 127.0.0.1 --port 5000
+```
 
 ## 6. Consideraciones
 
 - El control de atribución de Leaflet está oculto en el mapa.
-- La predicción puede tardar aproximadamente 1-2 minutos porque el modelo LSTM se reentrena con los datos históricos de la estación desde un ordenador local.
+- La predicción se resuelve en segundos porque la API carga el modelo ya entrenado desde MLflow; el entrenamiento previo se realiza una sola vez con `backend/scripts/train_all_stations.py`.
 - Las distancias a pie se calculan con OSRM; si el servicio falla se muestra una distancia aproximada en línea recta.
-- Desde la consola del navegador también se puede ver el progreso de la predicción y los resultados originales que arroja el modelo LSTM.
+- Desde la consola del navegador también se puede ver los resultados originales que arroja el modelo LSTM.

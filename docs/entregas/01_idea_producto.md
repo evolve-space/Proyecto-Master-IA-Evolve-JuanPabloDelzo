@@ -73,8 +73,8 @@ Este producto resuelve estas situaciones de forma rápida y clara, combinando in
 - **Ahorra tiempo**: no caminas hasta una estación vacía.
 - **Evita frustraciones**: sabes de antemano si hay anclajes libres para devolver.
 - **Es simple**: la información es directa, sin tecnicismos.
-- **Es predictivo**: anticipa la disponibilidad futura usando histórico, clima y festivos.
-- **Datos en tiempo real**: refleja la disponibilidad actual de cada estación.
+- **Es predictivo**: anticipa la disponibilidad futura a 5 y 10 minutos usando modelos LSTM entrenados por estación y registrados en MLflow.
+- **Modelos versionados**: cada estación tiene su propio modelo (`est_{station_id}`) en el Model Registry de MLflow, lo que permite cargarlo y predecir sin reentrenar.
 
 ---
 
@@ -82,7 +82,7 @@ Este producto resuelve estas situaciones de forma rápida y clara, combinando in
 
 Los datos provienen del [Open Data del Ajuntament de Barcelona](https://opendata-ajuntament.barcelona.cat) (información y estado de estaciones), de la API de [Open-Meteo](https://open-meteo.com/) (datos meteorológicos históricos de Barcelona) y del calendario de festivos de Cataluña, combinados para alimentar modelos de predicción de series temporales.
 
-La interfaz de usuario está desarrollada en **React** con **Vite** y gestionada con el gestor de paquetes `pnpm`, consumiendo las predicciones del backend a través de una API REST.
+Cada estación dispone de un modelo LSTM propio entrenado con su histórico y registrado en MLflow (`est_{station_id}`). La interfaz de usuario está desarrollada en **React** con **Vite** y gestionada con `pnpm`, consumiendo las predicciones del backend a través de una API REST Flask en el puerto `5002`.
 
 ---
 

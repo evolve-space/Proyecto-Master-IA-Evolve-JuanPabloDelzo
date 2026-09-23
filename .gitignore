@@ -227,4 +227,7 @@ data/
 errores_entrenamiento.csv
 
 # Archivos de prueba
-test_load_model.py
+backend/sripts/test_load_model.py
+
+# Instrucciones
+backend/script/intrucciones.txt

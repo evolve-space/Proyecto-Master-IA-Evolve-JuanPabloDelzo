@@ -146,6 +146,7 @@ Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bic
 | Filtrar por **tipo de bici** (mecánica / eléctrica) | `data/estado/` |
 | Incorporar el impacto del **clima** | API Open-Meteo → `backend/scripts/silver/4.fetch_clima_bcn.py` |
 | Unir histórico y clima por estación | `backend/scripts/gold/bikes.py` |
+| Entrenar y versionar modelos por estación | `backend/scripts/train_all_stations.py` + MLflow |
 
 ---
 
