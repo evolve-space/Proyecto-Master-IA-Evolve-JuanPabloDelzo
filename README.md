@@ -180,10 +180,10 @@ Station information  +  Station status  +  Weather
 │   │   ├── gold/
 │   │   │   └── bikes.py               ← Feature engineering per station
 │   │   └── silver/                    ← Bronze → Silver load (MySQL)
-│   │       ├── 1.create_db.py
-│   │       ├── 2.insert_informacion.py
-│   │       ├── 3.insert_estado.py
-│   │       ├── 4.fetch_clima_bcn.py
+│   │       ├── 01_create_db.py
+│   │       ├── 02_insert_informacion.py
+│   │       ├── 03_insert_estado.py
+│   │       ├── 04_fetch_clima_bcn.py
 │   │       └── db_config.py           ← MySQL credentials via .env
 │   │
 │   └── 📂 back_testing/
