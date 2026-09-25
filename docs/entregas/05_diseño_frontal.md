@@ -42,7 +42,7 @@ En fase de desarrollo, se genera un punto aleatorio dentro del término municipa
 
 - Se descarga y cachea el polígono administrativo de Barcelona desde Nominatim.
 - Se usa `OSRM /routed-foot/nearest` para obtener el punto de la vía pública más cercano a pie.
-- Si falla tras varios intentos, se recurre a un punto de respaldo en una zona urbana segura ( *felizmente hasta ahora no se ha recurrido a este punto*).
+- Si falla tras varios intentos, se recurre a un punto de respaldo en una zona urbana segura.
 
 ### 4.3 Selección de las tres estaciones más cercanas
 
