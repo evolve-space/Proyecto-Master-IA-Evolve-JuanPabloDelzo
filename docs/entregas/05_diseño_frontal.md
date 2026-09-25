@@ -24,7 +24,7 @@ La interfaz se divide en cuatro zonas:
 1. **Cabecera**: marca con icono de bicicleta, título "Bicing cerca de mí", subtítulo, badge de estado (Listo / Calculando distancias… / Inicializando…) y **selector de idioma** con banderas (España, Cataluña, Reino Unido).
 2. **Panel lateral (sidebar)**: lista las 3 estaciones más cercanas como tarjetas interactivas, con ranking, distancia, capacidad, código postal y un resumen compacto de la predicción.
 3. **Mapa**: ocupa el cuerpo principal, muestra la ubicación del usuario, las estaciones destacadas con pins numerados y el resto como puntos atenuados agrupados en clústeres.
-4. **Pie**: leyenda con el origen de los datos y la arquitectura predictiva.
+4. **Pie**: leyenda con el origen de los datos, la arquitectura predictiva y una leyenda visual que distingue los pins de las 3 estaciones más cercanas de los puntos grises del resto de estaciones.
 
 La siguiente imagen ilustra el resultado visual actual del frontend:
 
@@ -81,7 +81,7 @@ El popup de una estación destacada tiene formato de tarjeta:
 
 Cada fila lleva un icono de `lucide-react` (bicicleta, rayo, candado) para facilitar la lectura.
 
-### 4.6 Internacionalización (i18n)
+### 4.7 Internacionalización (i18n)
 
 El frontend soporta tres idiomas gestionados desde un objeto de traducciones en `frontend/src/App.jsx`:
 
@@ -91,11 +91,11 @@ El frontend soporta tres idiomas gestionados desde un objeto de traducciones en 
 
 El selector de idioma se ubica en la cabecera, a la derecha del badge de estado. Cada opción muestra la bandera correspondiente y el código de idioma (`ES`, `CA`, `EN`). La selección se persiste en `localStorage` y se aplica a todos los textos de la interfaz: título, subtítulo, loader, sidebar, tarjetas, tooltips, popups, tabla de predicciones, errores y pie de página.
 
-### 4.7 Estilos e iconos
+### 4.8 Estilos e iconos
 
 - **Paleta**: verde bosque (`#1b5e20`) y rosa Bicing (`#e6007e`) con blanco y gris suave, usando CSS variables para mantener coherencia.
 - **Sombras y bordes redondeados**: tarjetas, mapa, popups y tooltips con `border-radius` y sombras suaves para un aspecto moderno.
-- **Header**: gradiente verde con icono de bicicleta y badge de estado dinámico.
+- **Header**: gradiente verde con icono de bicicleta, badge de estado dinámico y selector de idioma con banderas.
 - **Loader inicial**: animación de puntos pulsantes en lugar de un reloj de arena.
 - **Tooltips**: al pasar el ratón sobre los marcadores destacados, con dirección, código postal y distancia.
 - **Iconos de `lucide-react`**: header, tarjetas del sidebar, popups y tabla de predicciones.
@@ -121,5 +121,6 @@ mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-a
 - La predicción carga un modelo ya entrenado desde MLflow. La primera petición de una estación descarga los artifacts en el servidor (~20-30 s); las siguientes usan el cache en memoria y son casi inmediatas. El entrenamiento previo se realiza una sola vez con `backend/scripts/train_all_stations.py`.
 - Las distancias a pie se calculan con OSRM; si el servicio falla se muestra una distancia aproximada en línea recta.
 - El sidebar muestra un resumen compacto de la predicción; el popup del mapa ofrece el detalle completo.
+- El footer incluye una leyenda visual: pin rosa numerado = 3 estaciones más cercanas; punto gris = resto de estaciones.
 - El selector de idioma y las traducciones están implementados de forma interna en el frontend sin librería externa, facilitando su mantenimiento y ampliación.
 - Desde la consola del navegador también se puede ver los resultados originales que arroja el modelo LSTM.
