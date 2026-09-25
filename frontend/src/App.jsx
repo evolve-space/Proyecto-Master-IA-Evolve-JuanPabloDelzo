@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { divIcon } from 'leaflet';
-import { Bike, Lock, Zap } from 'lucide-react';
+import { Bike, Lock, MapPin, Navigation, Timer, Zap } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
@@ -302,20 +302,21 @@ const fetchWalkingDistancesTable = async (from, stations, retries = 2) => {
   return null;
 };
 
-// Icono tipo "pin globo" rosa, similar a un marcador de estación de bicis.
-const bikeStationIcon = divIcon({
-  className: 'bike-marker',
-  html: `
+// Icono tipo "pin globo" rosa con el ranking (1, 2, 3) de cercanía.
+const createBikeStationIcon = (rank) =>
+  divIcon({
+    className: 'bike-marker',
+    html: `
     <div class="bike-marker-head">
-      <span class="bike-marker-dot"></span>
+      <span class="bike-marker-rank">${rank}</span>
     </div>
     <div class="bike-marker-stem"></div>
     <div class="bike-marker-shadow"></div>
   `,
-  iconSize: [26, 38],
-  iconAnchor: [13, 36],
-  popupAnchor: [0, -34],
-});
+    iconSize: [30, 42],
+    iconAnchor: [15, 40],
+    popupAnchor: [0, -38],
+  });
 
 // Icono para la ubicación (simulada) del usuario: un punto azul con halo,
 // siguiendo la convención habitual de "mi ubicación" en mapas.
@@ -409,6 +410,7 @@ function App() {
   const [predictions, setPredictions] = useState({});
   const [predictionLoading, setPredictionLoading] = useState({});
   const [predictionError, setPredictionError] = useState({});
+  const [selectedStationId, setSelectedStationId] = useState(null);
   const locationInitStarted = useRef(false);
 
   useEffect(() => {
@@ -502,6 +504,7 @@ function App() {
   const fetchPrediction = async (stationId) => {
     if (predictionLoading[stationId]) return;
 
+    setSelectedStationId(stationId);
     setPredictionLoading((prev) => ({ ...prev, [stationId]: true }));
     setPredictionError((prev) => ({ ...prev, [stationId]: null }));
 
@@ -567,20 +570,51 @@ function App() {
   }, [stations, nearestStations]);
 
   const loading = loadingStations || loadingLocation;
+  const statusText = loading
+    ? 'Inicializando…'
+    : computingNearest
+      ? 'Calculando distancias…'
+      : 'Listo';
 
   return (
     <div className="dashboard">
       <header className="dashboard-header">
-        <h1>Bicing cerca de mí</h1>
-        <p>Ubicación del usuario y las estaciones más cercanas</p>
-        {computingNearest && <span className="nearest-loading">Calculando estaciones más cercanas…</span>}
+        <div className="dashboard-header-brand">
+          <div className="dashboard-header-icon">
+            <Bike size={22} color="#fff" />
+          </div>
+          <div>
+            <h1>Bicing cerca de mí</h1>
+            <p>Barcelona · estaciones y predicción de disponibilidad</p>
+          </div>
+        </div>
+        <div className="header-status">
+          <span className={`status-dot ${loading || computingNearest ? 'loading' : ''}`}></span>
+          {statusText}
+        </div>
       </header>
-      <main className="map-container">
+
+      <div className="dashboard-body">
+        {/* Sidebar con las 3 estaciones más cercanas */}
+        <StationSidebar
+          nearestStations={nearestStations}
+          predictions={predictions}
+          predictionLoading={predictionLoading}
+          predictionError={predictionError}
+          selectedStationId={selectedStationId}
+          loading={loading}
+          onPredict={fetchPrediction}
+          onSelect={setSelectedStationId}
+        />
+
+        {/* Mapa */}
+        <main className="map-container">
         {loading && (
           <div className="program-loader">
-            <div className="hourglass" aria-label="Reloj de arena animado">
-              <div className="hourglass-top"></div>
-              <div className="hourglass-bottom"></div>
+            <div className="loader-pulse" aria-label="Cargando">
+              <span></span>
+              <span></span>
+              <span></span>
             </div>
             <p className="loader-title">Abriendo el programa…</p>
             <p className="loader-detail">
@@ -624,137 +658,241 @@ function App() {
             ))}
           </MarkerClusterGroup>
 
-          {/* Las tres estaciones más cercanas al usuario, destacadas como antes.
-              Al hacer click sobre una de ellas se pide la predicción LSTM y
-              se muestra junto a la información de la estación. */}
-          {nearestStations.map((s, index) => {
-            const pred = predictions[s.id];
-            const isLoading = predictionLoading[s.id];
-            const hasError = predictionError[s.id];
-
-            const pred5 = pred?.predictions?.find((p) => p.horizon_minutes === 5);
-            const pred10 = pred?.predictions?.find((p) => p.horizon_minutes === 10);
-            const nbm5 = Math.round(pred5?.nbm ?? 0);
-            const nbe5 = Math.round(pred5?.nbe ?? 0);
-            const nbm10 = Math.round(pred10?.nbm ?? 0);
-            const nbe10 = Math.round(pred10?.nbe ?? 0);
-            const capacity = s.capacity ?? 0;
-            const docks5 = Math.max(0, capacity - nbm5 - nbe5);
-            const docks10 = Math.max(0, capacity - nbm10 - nbe10);
-
-            return (
-              <Marker
-                key={s.id}
-                position={[s.lat, s.lon]}
-                icon={bikeStationIcon}
-                eventHandlers={{
-                  click: () => {
-                    console.log('%cEstación seleccionada:', 'color: orange; font-weight: bold;',s.id);
-                    fetchPrediction(s.id);
-                  },
-                }}
-              >
-                <Tooltip direction="top" offset={[0, -30]} opacity={1}>
-                  <div className="tooltip-content">
-                    <span>
-                      <strong>Dirección:</strong> {s.name}
-                    </span>
-                    {s.postCode && (
-                      <span>
-                        <strong>Código postal:</strong> {s.postCode}
-                      </span>
-                    )}
-                    <span>
-                      <strong>{s.isWalkingDistance ? 'Distancia a pie:' : 'Distancia aprox.:'}</strong>{' '}
+          {/* Las tres estaciones más cercanas, destacadas con pin numerado. */}
+          {nearestStations.map((s, index) => (
+            <Marker
+              key={s.id}
+              position={[s.lat, s.lon]}
+              icon={createBikeStationIcon(index + 1)}
+              eventHandlers={{
+                click: () => {
+                  console.log('%cEstación seleccionada:', 'color: orange; font-weight: bold;', s.id);
+                  fetchPrediction(s.id);
+                },
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -36]} opacity={1}>
+                <div className="tooltip-content">
+                  <span><strong>{index + 1}ª más cercana</strong> · {s.name}</span>
+                  {s.postCode && <span><strong>CP:</strong> {s.postCode}</span>}
+                  <span>
+                    <strong>{s.isWalkingDistance ? 'Distancia a pie:' : 'Distancia aprox.:'}</strong>{' '}
+                    {formatDistance(s.distanceKm)}
+                    {!s.isWalkingDistance && ' (línea recta)'}
+                  </span>
+                </div>
+              </Tooltip>
+              <Popup>
+                <div className="popup-card">
+                  <div className="popup-header">
+                    <h3>
+                      {index + 1}ª más cercana · {s.name}
+                    </h3>
+                    <div className="popup-header-meta">
+                      <span>{s.capacity ?? '?'} anclajes</span>
+                      {s.postCode && <span>CP {s.postCode}</span>}
+                    </div>
+                  </div>
+                  <div className="popup-body">
+                    <span className={`popup-distance ${s.isWalkingDistance ? 'walking' : ''}`}>
+                      <Navigation size={14} />
+                      {s.isWalkingDistance ? 'Distancia caminando: ' : 'Distancia aprox.: '}
                       {formatDistance(s.distanceKm)}
                       {!s.isWalkingDistance && ' (línea recta)'}
                     </span>
-                  </div>
-                </Tooltip>
-                <Popup>
-                  <div className="popup-content">
-                    <strong>
-                      {index === 0 ? '1ª más cercana' : index === 1 ? '2ª más cercana' : '3ª más cercana'} · {s.name}
-                    </strong>
-                    <span>Capacidad: {s.capacity} anclajes</span>
-                    {s.postCode && <span>Código Postal: {s.postCode}</span>}
-                    <span>
-                      {s.isWalkingDistance ? 'Distancia caminando: ' : 'Distancia aprox. (línea recta): '}
-                      {formatDistance(s.distanceKm)}
-                    </span>
-
                     <div className="prediction-section">
-                      {!isLoading && <strong>Predicción</strong>}
-                      {isLoading ? (
-                        <div className="prediction-spinner">
-                          <div className="spinner-wheel" aria-label="Calculando predicción">
-                            {Array.from({ length: 8 }).map((_, i) => (
-                              <span key={i} className="spinner-dot" style={{ '--i': i }}></span>
-                            ))}
-                          </div>
-                          <span className="prediction-loading">Un momento por favor…</span>
-                        </div>
-                      ) : hasError ? (
-                        <span className="prediction-error">Error: {hasError}</span>
-                      ) : pred ? (
-                        <table className="prediction-table">
-                          <thead>
-                            <tr>
-                              <th></th>
-                              <th>+ 5 min</th>
-                              <th>+ 10 min</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            <tr>
-                              <td>
-                                <Bike size={14} /> Mecánicas
-                              </td>
-                              <td>{nbm5}</td>
-                              <td>{nbm10}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <Zap size={14} /> Eléctricas
-                              </td>
-                              <td>{nbe5}</td>
-                              <td>{nbe10}</td>
-                            </tr>
-                            <tr>
-                              <td>
-                                <Lock size={14} /> Docks
-                              </td>
-                              <td>{docks5}</td>
-                              <td>{docks10}</td>
-                            </tr>
-                          </tbody>
-                        </table>
-                      ) : (
-                        <span className="prediction-hint">Haz clic en el marcador para predecir</span>
-                      )}
+                      <strong>Predicción de disponibilidad</strong>
+                      <PredictionSummary
+                        pred={predictions[s.id]}
+                        isLoading={predictionLoading[s.id]}
+                        hasError={predictionError[s.id]}
+                        capacity={s.capacity}
+                      />
                     </div>
                   </div>
-                </Popup>
-              </Marker>
-            );
-          })}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
-          {/* Ubicación (simulada) del usuario, siempre sobre una calle. */}
+          {/* Ubicación del usuario. */}
           {userLocation && (
             <Marker position={[userLocation.lat, userLocation.lon]} icon={userLocationIcon}>
               <Popup>
-                <div className="popup-content">
-                  <strong>Tu ubicación</strong>
-                  <span>{userLocation.snapped ? 'Ajustada a la calle más cercana' : 'Posición aproximada'}</span>
+                <div className="popup-card">
+                  <div className="popup-header">
+                    <h3>Tu ubicación</h3>
+                  </div>
+                  <div className="popup-body">
+                    <span className="popup-distance walking">
+                      <MapPin size={14} />
+                      {userLocation.snapped ? 'Ajustada a la calle más cercana' : 'Posición aproximada'}
+                    </span>
+                  </div>
                 </div>
               </Popup>
             </Marker>
           )}
         </MapContainer>
-      </main>
+        </main>
+      </div>
+
       <footer className="dashboard-footer">
-        Datos de la API de estaciones de bicicletas públicas de Barcelona · Tema Bicing
+        <span>
+          Datos de la API de estaciones de bicicletas públicas de Barcelona · Predicciones con modelos LSTM por estación
+        </span>
+        <span className="footer-legend">
+          <span className="legend-pin"></span> 3 más cercanas ·
+          <span className="legend-dot"></span> resto de estaciones
+        </span>
       </footer>
+    </div>
+  );
+}
+
+// ---------- Componentes auxiliares ----------
+
+function PredictionSummary({ pred, isLoading, hasError, capacity }) {
+  if (isLoading) {
+    return (
+      <div className="prediction-spinner">
+        <div className="spinner-ring" aria-label="Calculando predicción"></div>
+        <span className="prediction-loading">Calculando predicción…</span>
+      </div>
+    );
+  }
+  if (hasError) return <span className="prediction-error">Error: {hasError}</span>;
+  if (!pred) return <span className="prediction-hint">Pulsa "Predecir" para ver la disponibilidad futura.</span>;
+
+  const p5 = pred.predictions?.find((p) => p.horizon_minutes === 5);
+  const p10 = pred.predictions?.find((p) => p.horizon_minutes === 10);
+  const nbm5 = Math.round(p5?.nbm ?? 0);
+  const nbe5 = Math.round(p5?.nbe ?? 0);
+  const nbm10 = Math.round(p10?.nbm ?? 0);
+  const nbe10 = Math.round(p10?.nbe ?? 0);
+  const docks5 = Math.max(0, (capacity ?? 0) - nbm5 - nbe5);
+  const docks10 = Math.max(0, (capacity ?? 0) - nbm10 - nbe10);
+
+  return (
+    <table className="prediction-table">
+      <thead>
+        <tr>
+          <th></th>
+          <th>+ 5 min</th>
+          <th>+ 10 min</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><Bike size={14} /> Mecánicas</td>
+          <td>{nbm5}</td>
+          <td>{nbm10}</td>
+        </tr>
+        <tr>
+          <td><Zap size={14} /> Eléctricas</td>
+          <td>{nbe5}</td>
+          <td>{nbe10}</td>
+        </tr>
+        <tr>
+          <td><Lock size={14} /> Docks</td>
+          <td>{docks5}</td>
+          <td>{docks10}</td>
+        </tr>
+      </tbody>
+    </table>
+  );
+}
+
+function StationSidebar({ nearestStations, predictions, predictionLoading, predictionError, selectedStationId, loading, onPredict, onSelect }) {
+  return (
+    <aside className="stations-sidebar">
+      <h2 className="sidebar-title">
+        <MapPin size={16} />
+        Estaciones más cercanas
+      </h2>
+      <div className="sidebar-list">
+        {nearestStations.length === 0 ? (
+          <div className="sidebar-empty">
+            {loading
+              ? 'Localizando tu posición y estaciones…'
+              : 'No hay estaciones cercanas disponibles.'}
+          </div>
+        ) : (
+          nearestStations.map((s, index) => (
+            <StationCard
+              key={s.id}
+              s={s}
+              index={index}
+              pred={predictions[s.id]}
+              isLoading={predictionLoading[s.id]}
+              hasError={predictionError[s.id]}
+              isActive={selectedStationId === s.id}
+              onPredict={() => onPredict(s.id)}
+              onSelect={() => onSelect(s.id)}
+            />
+          ))
+        )}
+      </div>
+    </aside>
+  );
+}
+
+function StationCard({ s, index, pred, isLoading, hasError, isActive, onPredict, onSelect }) {
+  const p5 = pred?.predictions?.find((p) => p.horizon_minutes === 5);
+  const p10 = pred?.predictions?.find((p) => p.horizon_minutes === 10);
+
+  return (
+    <div
+      className={`station-card ${isActive ? 'active' : ''}`}
+      onClick={() => onSelect()}
+    >
+      <span className="station-rank">{index + 1}</span>
+      <div className="station-card-header">
+        <h3 className="station-card-name">{s.name}</h3>
+        <span className={`station-card-distance ${s.isWalkingDistance ? 'walking' : ''}`}>
+          <Navigation size={12} />
+          {formatDistance(s.distanceKm)}
+          {!s.isWalkingDistance && ' (recta)'}
+        </span>
+      </div>
+      <div className="station-card-meta">
+        <span><MapPin size={12} /> {s.capacity ?? '?'} anclajes</span>
+        {s.postCode && <span>CP {s.postCode}</span>}
+      </div>
+      <button
+        className="station-card-predict"
+        disabled={isLoading}
+        onClick={(e) => {
+          e.stopPropagation();
+          onPredict();
+        }}
+      >
+        {isLoading ? 'Calculando…' : pred ? 'Actualizar predicción' : 'Predecir disponibilidad'}
+      </button>
+      {pred && (
+        <div className="mini-prediction">
+          <div className="mini-prediction-header">
+            <span className="mini-prediction-title">Disponibilidad prevista</span>
+            <span className="mini-prediction-time"><Timer size={10} /> +5 / +10 min</span>
+          </div>
+          <div className="mini-prediction-grid">
+            <span className="mini-prediction-cell label"> <Bike size={14} />  Mecánicas</span>
+            <span className="mini-prediction-cell label"> <Zap size={14} /> Eléctricas</span>
+            <span className="mini-prediction-cell label"> <Lock size={14} /> Docks</span>
+            <span className="mini-prediction-cell"><strong>{Math.round(p5?.nbm ?? 0)}</strong><small>+5</small></span>
+            <span className="mini-prediction-cell"><strong>{Math.round(p5?.nbe ?? 0)}</strong><small>+5</small></span>
+            <span className="mini-prediction-cell"><strong>{Math.max(0, (s.capacity ?? 0) - Math.round(p5?.nbm ?? 0) - Math.round(p5?.nbe ?? 0))}</strong><small>+5</small></span>
+            <span className="mini-prediction-cell"><strong>{Math.round(p10?.nbm ?? 0)}</strong><small>+10</small></span>
+            <span className="mini-prediction-cell"><strong>{Math.round(p10?.nbe ?? 0)}</strong><small>+10</small></span>
+            <span className="mini-prediction-cell"><strong>{Math.max(0, (s.capacity ?? 0) - Math.round(p10?.nbm ?? 0) - Math.round(p10?.nbe ?? 0))}</strong><small>+10</small></span>
+          </div>
+        </div>
+      )}
+      {!pred && !isLoading && hasError && (
+        <span className="prediction-error" style={{ marginTop: '0.5rem', display: 'block' }}>
+          {hasError}
+        </span>
+      )}
     </div>
   );
 }

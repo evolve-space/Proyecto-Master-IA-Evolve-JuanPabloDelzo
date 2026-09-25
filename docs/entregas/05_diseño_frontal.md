@@ -2,26 +2,27 @@
 
 ## 1. Objetivo
 
-El frontend del proyecto ofrece una interfaz cartográfica sencilla para:
+El frontend del proyecto ofrece una interfaz cartográfica elegante para:
 
 - Localizar una posición de usuario dentro de Barcelona.
-- Mostrar las tres estaciones de Bicing más cercanas.
+- Mostrar las tres estaciones de Bicing más cercanas en un panel lateral.
 - Consultar la predicción de disponibilidad de bicicletas mecánicas, eléctricas y anclajes libres a 5 y 10 minutos vista.
 
 ## 2. Tecnologías
 
 - **React 19 + Vite**: generado con `pnpm create vite@latest frontend -- --template react`.
 - **react-leaflet + Leaflet**: mapa interactivo con marcadores, popups, tooltips y agrupación en clústeres.
-- **lucide-react**: iconografía de la tabla de predicciones.
-- **CSS personalizado**: estilos globales en `frontend/src/App.css`.
+- **lucide-react**: iconografía del header, tarjetas, popups y tabla de predicciones.
+- **CSS personalizado**: estilos globales en `frontend/src/App.css` con variables de diseño y soporte responsive.
 
 ## 3. Vista principal
 
-La interfaz se divide en tres zonas verticales:
+La interfaz se divide en cuatro zonas:
 
-1. **Cabecera**: título "Bicing cerca de mí" y subtítulo "Ubicación del usuario y las tres estaciones más cercanas".
-2. **Mapa**: ocupa el cuerpo principal y muestra la ubicación del usuario y las estaciones.
-3. **Pie**: leyenda con el origen de los datos y el tema Bicing.
+1. **Cabecera**: marca con icono de bicicleta, título "Bicing cerca de mí", subtítulo y badge de estado (Listo / Calculando distancias… / Inicializando…).
+2. **Panel lateral (sidebar)**: lista las 3 estaciones más cercanas como tarjetas interactivas, con ranking, distancia, capacidad, código postal y un resumen compacto de la predicción.
+3. **Mapa**: ocupa el cuerpo principal, muestra la ubicación del usuario, las estaciones destacadas con pins numerados y el resto como puntos atenuados agrupados en clústeres.
+4. **Pie**: leyenda con el origen de los datos y la arquitectura predictiva.
 
 La siguiente imagen ilustra el resultado visual actual del frontend:
 
@@ -48,30 +49,46 @@ En fase de desarrollo, se genera un punto aleatorio dentro del término municipa
 3. Se ordenan por distancia peatonal y se conservan las 3 más cercanas.
 4. Si OSRM no devuelve distancia para alguna candidata, se conserva la distancia en línea recta como aproximación y se indica visualmente.
 
-### 4.4 Renderizado del mapa
+### 4.4 Panel lateral de estaciones
+
+Las tres estaciones más cercanas se renderizan como tarjetas en el sidebar:
+
+- **Ranking visual**: badge circular rosa con 1, 2 o 3.
+- **Distancia**: badge con icono de navegación, distancia a pie si OSRM responde o distancia aproximada en línea recta si falla.
+- **Metadatos**: capacidad total y código postal.
+- **Acción**: botón "Predecir disponibilidad" que llama a `POST /api/predict`.
+- **Resumen compacto**: cuando la predicción ya está cargada, la tarjeta muestra una mini tabla con mecánicas, eléctricas y docks a +5 y +10 min.
+
+Las tarjetas son clicables: seleccionan la estación y, al pulsar el botón, obtienen o actualizan la predicción.
+
+### 4.5 Renderizado del mapa
 
 - La capa base se obtiene de OpenStreetMap.
-- Las tres estaciones más cercanas se destacan con un marcador rosa tipo pin.
+- Las tres estaciones más cercanas se destacan con un marcador rosa tipo pin **numerado** (1, 2, 3).
 - El resto de estaciones se muestran como puntos atenuados y se agrupan en clústeres al reducir el zoom.
 - La ubicación del usuario se representa con un punto azul con halo de pulso.
-- Al hacer clic en una estación destacada se dispara la consulta de predicción.
+- Al hacer clic en un marcador destacado se abre un popup con la información de la estación y la predicción.
 
-### 4.5 Predicción
+### 4.6 Popups y predicción
 
-Al hacer clic en una estación destacada se llama a `POST /api/predict` enviando el `station_id`. La API carga el modelo `est_{station_id}` y los escaladores desde MLflow, prepara la última ventana disponible y devuelve la predicción en segundos. Al recibir la respuesta se muestra una tabla con:
+El popup de una estación destacada tiene formato de tarjeta:
 
-- Bicicletas mecánicas a +5 y +10 minutos.
-- Bicicletas eléctricas a +5 y +10 minutos.
-- Anclajes libres a +5 y +10 minutos.
+- **Cabecera verde**: ranking + nombre de la estación, capacidad y código postal.
+- **Distancia**: badge con icono de navegación, indicando si es a pie o aproximada.
+- **Tabla de predicción**: muestra bicicletas mecánicas, eléctricas y anclajes libres a +5 y +10 minutos.
 
-Cada fila de la tabla lleva un icono de `lucide-react` para facilitar la lectura: bicicleta para mecánicas, rayo para eléctricas y candado para anclajes.
+Cada fila lleva un icono de `lucide-react` (bicicleta, rayo, candado) para facilitar la lectura.
 
-### 4.6 Estilos e iconos
+### 4.7 Estilos e iconos
 
-- Paleta de colores verde y rosa, inspirada en la identidad visual de Bicing.
-- Tooltips al pasar el ratón sobre las estaciones destacadas, con dirección, código postal y distancia.
-- Popups al hacer clic, con capacidad, distancia y tabla de predicción.
-- Iconos de `lucide-react` en la tabla de predicción.
+- **Paleta**: verde bosque (`#1b5e20`) y rosa Bicing (`#e6007e`) con blanco y gris suave, usando CSS variables para mantener coherencia.
+- **Sombras y bordes redondeados**: tarjetas, mapa, popups y tooltips con `border-radius` y sombras suaves para un aspecto moderno.
+- **Header**: gradiente verde con icono de bicicleta y badge de estado dinámico.
+- **Loader inicial**: animación de puntos pulsantes en lugar de un reloj de arena.
+- **Tooltips**: al pasar el ratón sobre los marcadores destacados, con dirección, código postal y distancia.
+- **Iconos de `lucide-react`**: header, tarjetas del sidebar, popups y tabla de predicciones.
+- **Diferenciación visual**: las 3 estaciones más cercanas usan pins rosas numerados; el resto aparece como pequeños puntos grises neutros, con leyenda en el pie para evitar confusión.
+- **Responsive**: en pantallas estrechas el sidebar pasa a una banda horizontal sobre el mapa.
 
 ## 5. Integración con el backend
 
@@ -91,4 +108,5 @@ mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-a
 - El control de atribución de Leaflet está oculto en el mapa.
 - La predicción carga un modelo ya entrenado desde MLflow. La primera petición de una estación descarga los artifacts en el servidor (~20-30 s); las siguientes usan el cache en memoria y son casi inmediatas. El entrenamiento previo se realiza una sola vez con `backend/scripts/train_all_stations.py`.
 - Las distancias a pie se calculan con OSRM; si el servicio falla se muestra una distancia aproximada en línea recta.
+- El sidebar muestra un resumen compacto de la predicción; el popup del mapa ofrece el detalle completo.
 - Desde la consola del navegador también se puede ver los resultados originales que arroja el modelo LSTM.
