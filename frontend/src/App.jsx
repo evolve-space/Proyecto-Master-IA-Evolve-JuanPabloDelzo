@@ -29,9 +29,11 @@ const BARCELONA_BOUNDARY_URL =
   'https://nominatim.openstreetmap.org/search?city=Barcelona&country=Spain&format=json&polygon_geojson=1&featureType=city&limit=1';
 
 // Nº de estaciones candidatas (por distancia en línea recta) para las que
-// se consulta la distancia real caminando. Solo necesitamos 3 finales, por
-// lo que preguntar directamente por 3 reduce la llamada a OSRM.
-const WALKING_CANDIDATE_COUNT = 3;
+// se consulta la distancia real caminando. Pedimos unas pocas más de las 3
+// finales porque OSRM puede no devolver valor para algunas (por ejemplo, si
+// caen en zonas peatonales no conectadas); así garantizamos que las 3 más
+// cercanas finales tengan distancia a pie cuando sea posible.
+const WALKING_CANDIDATE_COUNT = 8;
 
 // Radio medio de la Tierra en kilómetros, usado en la fórmula de Haversine.
 const EARTH_RADIUS_KM = 6371;
@@ -271,12 +273,13 @@ const fetchWalkingDistancesTable = async (from, stations, retries = 2) => {
     let timeout;
     try {
       const controller = new AbortController();
-      timeout = setTimeout(() => controller.abort(), 4000);
+      timeout = setTimeout(() => controller.abort(), 10000);
       const res = await fetch(
         `${FOOT_TABLE_URL}/${coordinates}?annotations=distance&sources=0&destinations=${destinations}`,
         { signal: controller.signal },
       );
-      if (res.status === 429 && attempt < retries) {
+      // Cualquier fallo transitorio (rate-limit, timeout, error 5xx) se reintenta.
+      if ((!res.ok || res.status === 429) && attempt < retries) {
         await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
         continue;
       }
@@ -287,7 +290,10 @@ const fetchWalkingDistancesTable = async (from, stations, retries = 2) => {
       if (!Array.isArray(row) || row.length !== stations.length) return null;
       return row;
     } catch {
-      if (attempt < retries) continue;
+      if (attempt < retries) {
+        await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+        continue;
+      }
       return null;
     } finally {
       if (timeout) clearTimeout(timeout);
@@ -490,25 +496,33 @@ function App() {
   }, [stations, userLocation]);
 
   // Al hacer clic en una estación, llama a la API de predicción LSTM y
-  // guarda el resultado para esa station_id. El entrenamiento tarda ~1-2
-  // minutos, así que mostramos un estado de carga mientras tanto.
+  // guarda el resultado para esa station_id. La primera predicción de una
+  // estación descarga el modelo desde MLflow (puede tardar ~20-30 s); las
+  // siguientes usan el cache del servidor y son casi inmediatas.
   const fetchPrediction = async (stationId) => {
     if (predictionLoading[stationId]) return;
 
     setPredictionLoading((prev) => ({ ...prev, [stationId]: true }));
     setPredictionError((prev) => ({ ...prev, [stationId]: null }));
 
+    // AbortController para evitar que peticiones antiguas queden colgadas
+    // si el usuario cierra el popup; timeout de 2 min por la descarga inicial.
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 120_000);
+
     try {
       const res = await fetch(PREDICCION_API, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ station_id: Number(stationId) }),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error desconocido');
 
       // Log de seguridad en consola con los valores no redondeados
-      // recibidos desde bicis_pred_api.py (antes de mostrarlos redondeados).
+      // recibidos desde informacion_api.py (antes de mostrarlos redondeados).
       console.group('Predicción recibida (valores raw) - estación', stationId);
       data.predictions?.forEach((p) => {
         console.log(
@@ -520,8 +534,17 @@ function App() {
 
       setPredictions((prev) => ({ ...prev, [stationId]: data }));
     } catch (err) {
+      if (err.name === 'AbortError') {
+        setPredictionError((prev) => ({
+          ...prev,
+          [stationId]:
+            'La petición ha tardado demasiado. Asegúrate de que informacion_api.py esté en ejecución.',
+        }));
+        return;
+      }
+
       // Detectamos específicamente cuando la API no responde (refused,
-      // timeout, etc.) para dar un mensión más útil al usuario.
+      // timeout, etc.) para dar un mensaje más útil al usuario.
       const isConnectionError =
         err.message?.includes('Failed to fetch') ||
         err.message?.includes('NetworkError') ||
@@ -531,6 +554,7 @@ function App() {
         : err.message;
       setPredictionError((prev) => ({ ...prev, [stationId]: friendlyMessage }));
     } finally {
+      clearTimeout(timeoutId);
       setPredictionLoading((prev) => ({ ...prev, [stationId]: false }));
     }
   };
@@ -641,7 +665,7 @@ function App() {
                       </span>
                     )}
                     <span>
-                      <strong>{s.isWalkingDistance ? 'A pie:' : 'Distancia aprox.:'}</strong>{' '}
+                      <strong>{s.isWalkingDistance ? 'Distancia a pie:' : 'Distancia aprox.:'}</strong>{' '}
                       {formatDistance(s.distanceKm)}
                       {!s.isWalkingDistance && ' (línea recta)'}
                     </span>

@@ -174,7 +174,7 @@ Station information  +  Station status  +  Weather
 │   │   ├── informacion_api.py         ← Stations + predictions (port 5002)
 │   │   └── bicis_pred_api.py          ← Standalone predictions API (port 5001)
 │   │
-│   ├── � scripts/                    ← Training and feature scripts
+│   ├── 📂 scripts/                    ← Training and feature scripts
 │   │   ├── lstm_model.py              ← LSTMbicis class: trains and predicts
 │   │   ├── train_all_stations.py      ← Trains one model per station and registers it in MLflow
 │   │   ├── gold/
@@ -188,27 +188,42 @@ Station information  +  Station status  +  Weather
 │   │
 │   └── 📂 back_testing/
 │
-└── 📄 mlflow.db                         ← MLflow tracking database (local, ignored in Git)
+└── 📄 arrancar.txt                      ← Commands to start MLflow against the correct SQLite database
 ```
+
+> **MLflow database**: the project uses `C:\Users\juand\mlflow.db` as the tracking
+> database and `C:\Users\juand\mlartifacts` as the artifact store. Launch it with:
+> ```bash
+> mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-artifact-root C:/Users/juand/mlartifacts --serve-artifacts --host 127.0.0.1 --port 5000
+> ```
 
 ## ▶️ How to run
 
-1. **Backend** (from the project root):
+1. **MLflow** (must be running before the API starts):
+   ```bash
+   mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-artifact-root C:/Users/juand/mlartifacts --serve-artifacts --host 127.0.0.1 --port 5000
+   ```
+
+2. **Backend** (from the project root):
    ```bash
    python backend/api/informacion_api.py
    ```
-   Exposes:
-   - `GET http://127.0.0.1:5000/api/informacion`
-   - `POST http://127.0.0.1:5000/api/predict`
+   Exposes on port **5002**:
+   - `GET http://127.0.0.1:5002/api/informacion`
+   - `POST http://127.0.0.1:5002/api/predict`
 
-2. **Frontend**:
+   `backend/api/bicis_pred_api.py` is a standalone alternative on port **5001**.
+
+3. **Frontend**:
    ```bash
    cd frontend
    pnpm install
    pnpm dev
    ```
 
-> **Note**: `backend/api/informacion_api.py` already includes both endpoints; `backend/api/bicis_pred_api.py` is a standalone alternative.
+> **Note**: predictions are served by loading a pre-trained model from MLflow. The
+> first call for a station downloads the model artifacts (~20-30 s); subsequent
+> calls for the same station reuse an in-memory cache.
 
 ---
 

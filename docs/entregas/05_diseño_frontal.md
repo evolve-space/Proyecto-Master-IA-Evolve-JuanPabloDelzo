@@ -43,10 +43,10 @@ En fase de desarrollo, se genera un punto aleatorio dentro del término municipa
 
 ### 4.3 Selección de las tres estaciones más cercanas
 
-1. Se ordenan las estaciones por distancia en línea recta (Haversine) y se toman las 3 primeras como candidatas.
-2. Se consulta la distancia real caminando mediante el endpoint `OSRM /routed-foot/table` en una sola petición.
+1. Se ordenan las estaciones por distancia en línea recta (Haversine) y se toman las 8 primeras como candidatas.
+2. Se consulta la distancia real caminando mediante el endpoint `OSRM /routed-foot/table` en una sola petición (timeout de 10 s y reintentos ante errores transitorios).
 3. Se ordenan por distancia peatonal y se conservan las 3 más cercanas.
-4. Si OSRM no responde, se conserva la distancia en línea recta como aproximación y se indica visualmente.
+4. Si OSRM no devuelve distancia para alguna candidata, se conserva la distancia en línea recta como aproximación y se indica visualmente.
 
 ### 4.4 Renderizado del mapa
 
@@ -89,6 +89,6 @@ mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-a
 ## 6. Consideraciones
 
 - El control de atribución de Leaflet está oculto en el mapa.
-- La predicción se resuelve en segundos porque la API carga el modelo ya entrenado desde MLflow; el entrenamiento previo se realiza una sola vez con `backend/scripts/train_all_stations.py`.
+- La predicción carga un modelo ya entrenado desde MLflow. La primera petición de una estación descarga los artifacts en el servidor (~20-30 s); las siguientes usan el cache en memoria y son casi inmediatas. El entrenamiento previo se realiza una sola vez con `backend/scripts/train_all_stations.py`.
 - Las distancias a pie se calculan con OSRM; si el servicio falla se muestra una distancia aproximada en línea recta.
 - Desde la consola del navegador también se puede ver los resultados originales que arroja el modelo LSTM.

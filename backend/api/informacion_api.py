@@ -43,6 +43,14 @@ CORS(app)  # Permite que el frontend (React, otro origen) consuma esta API
 
 COLUMNS = ["station_id", "latitud", "longitud", "address", "post_code", "capacity"]
 
+# Cache LRU en memoria para modelos/scalers ya cargados. Cada estación repite
+# los mismos artifacts de MLflow, por lo que cachearlos evita descargar el
+# modelo Keras en cada petición de predicción.
+from collections import OrderedDict
+
+MAX_CACHED_MODELS = 50
+_model_cache: OrderedDict[int, dict] = OrderedDict()
+
 # Configurar MLflow una sola vez al iniciar la API.
 mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
@@ -115,6 +123,33 @@ def _cargar_scaler(run_id: str, nombre: str):
         return pickle.load(f)
 
 
+def _cargar_modelo_cache(station_id: int, run_id: str):
+    """Devuelve modelo/scalers/feature_cols, cacheando en memoria por estación."""
+    global _model_cache
+    if station_id in _model_cache:
+        # Mover al final para mantener política LRU.
+        entry = _model_cache.pop(station_id)
+        _model_cache[station_id] = entry
+        return entry
+
+    model = mlflow.tensorflow.load_model(f"runs:/{run_id}/model")
+    scaler_x = _cargar_scaler(run_id, "scaler_x")
+    scaler_y = _cargar_scaler(run_id, "scaler_y")
+    feature_cols = _cargar_scaler(run_id, "feature_cols")
+
+    entry = {
+        "model": model,
+        "scaler_x": scaler_x,
+        "scaler_y": scaler_y,
+        "feature_cols": feature_cols,
+    }
+
+    if len(_model_cache) >= MAX_CACHED_MODELS:
+        _model_cache.popitem(last=False)
+    _model_cache[station_id] = entry
+    return entry
+
+
 @app.route("/api/predict", methods=["POST"])
 def predict():
     """Recibe station_id y devuelve las predicciones de nbm y nbe a 5 y 10 min."""
@@ -136,11 +171,12 @@ def predict():
                 {"error": f"No se encontró modelo entrenado para la estación {station_id}"}
             ), 404
 
-        # Cargar modelo y escaladores desde MLflow.
-        model = mlflow.tensorflow.load_model(f"runs:/{run_id}/model")
-        scaler_x = _cargar_scaler(run_id, "scaler_x")
-        scaler_y = _cargar_scaler(run_id, "scaler_y")
-        feature_cols = _cargar_scaler(run_id, "feature_cols")
+        # Cargar modelo y escaladores desde MLflow (con cache en memoria).
+        cached = _cargar_modelo_cache(station_id, run_id)
+        model = cached["model"]
+        scaler_x = cached["scaler_x"]
+        scaler_y = cached["scaler_y"]
+        feature_cols = cached["feature_cols"]
 
         # Obtener datos históricos de la estación.
         bicis = LSTMbicis._import_bicis()
