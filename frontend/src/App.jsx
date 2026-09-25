@@ -4,6 +4,148 @@ import MarkerClusterGroup from 'react-leaflet-cluster';
 import { divIcon } from 'leaflet';
 import { Bike, Lock, MapPin, Navigation, Timer, Zap } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
+
+// ---------- Internacionalización ----------
+
+const translations = {
+  es: {
+    appTitle: 'Bicing cerca de mí',
+    appSubtitle: 'Barcelona · estaciones y predicción de disponibilidad',
+    statusReady: 'Listo',
+    statusInitializing: 'Inicializando…',
+    statusComputing: 'Calculando distancias…',
+    nearestTitle: 'Estaciones más cercanas',
+    nearestEmptyLoading: 'Localizando tu posición y estaciones…',
+    nearestEmptyNone: 'No hay estaciones cercanas disponibles.',
+    loadingTitle: 'Abriendo el programa…',
+    loadingLocation: 'Localizando tu posición en la calle…',
+    loadingStations: 'Cargando estaciones…',
+    predictBtn: 'Predecir disponibilidad',
+    predictUpdating: 'Actualizar predicción',
+    predictCalculating: 'Calculando…',
+    predictionTitle: 'Predicción de disponibilidad',
+    predictionHint: 'Pulsa "Predecir" para ver la disponibilidad futura.',
+    miniPredTitle: 'Disponibilidad prevista',
+    miniPredTime: '+5 / +10 min',
+    labelMechanical: 'Mecánicas',
+    labelElectric: 'Eléctricas',
+    labelDocks: 'Docks',
+    labelCapacity: 'anclajes',
+    tooltipDistanceWalking: 'Distancia a pie:',
+    tooltipDistanceApprox: 'Distancia aprox.:',
+    tooltipStraightLine: ' (línea recta)',
+    popupRank: 'ª más cercana',
+    userLocationTitle: 'Tu ubicación',
+    userLocationSnapped: 'Ajustada a la calle más cercana',
+    userLocationApprox: 'Posición aproximada',
+    footerData: 'Datos de la API de estaciones de bicicletas públicas de Barcelona',
+    footerModels: 'Predicciones con modelos LSTM por estación',
+    footerLegendPin: '3 más cercanas',
+    footerLegendDot: 'resto de estaciones',
+    errorFallback: 'Error desconocido',
+    errorTimeout: 'La petición ha tardado demasiado. Asegúrate de que informacion_api.py esté en ejecución.',
+    errorConnection: 'No se pudo conectar con la API. Asegúrate de ejecutar: python backend/api/informacion_api.py',
+    months: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
+  },
+  ca: {
+    appTitle: 'Bicing a prop meu',
+    appSubtitle: 'Barcelona · estacions i predicció de disponibilitat',
+    statusReady: 'Llest',
+    statusInitializing: 'Inicialitzant…',
+    statusComputing: 'Calculant distàncies…',
+    nearestTitle: 'Estacions més properes',
+    nearestEmptyLoading: 'Localitzant la teva posició i les estacions…',
+    nearestEmptyNone: 'No hi ha estacions properes disponibles.',
+    loadingTitle: 'Obrint el programa…',
+    loadingLocation: 'Localitzant la teva posició al carrer…',
+    loadingStations: 'Carregant estacions…',
+    predictBtn: 'Predir disponibilitat',
+    predictUpdating: 'Actualitzar predicció',
+    predictCalculating: 'Calculant…',
+    predictionTitle: 'Predicció de disponibilitat',
+    predictionHint: 'Prem "Predir" per veure la disponibilitat futura.',
+    miniPredTitle: 'Disponibilitat prevista',
+    miniPredTime: '+5 / +10 min',
+    labelMechanical: 'Mecàniques',
+    labelElectric: 'Elèctriques',
+    labelDocks: 'Ancoratges',
+    labelCapacity: 'ancoratges',
+    tooltipDistanceWalking: 'Distància a peu:',
+    tooltipDistanceApprox: 'Distància aprox.:',
+    tooltipStraightLine: ' (línia recta)',
+    popupRank: 'a més propera',
+    userLocationTitle: 'La teva ubicació',
+    userLocationSnapped: 'Ajustada al carrer més proper',
+    userLocationApprox: 'Posició aproximada',
+    footerData: "Dades de l'API d'estacions de bicicletes públiques de Barcelona",
+    footerModels: 'Prediccions amb models LSTM per estació',
+    footerLegendPin: '3 més properes',
+    footerLegendDot: 'resta d\'estacions',
+    errorFallback: 'Error desconegut',
+    errorTimeout: 'La petició ha trigat massa. Assegura\'t que informacion_api.py estigui en execució.',
+    errorConnection: "No s'ha pogut connectar amb l'API. Assegura't d'executar: python backend/api/informacion_api.py",
+    months: ['Gen', 'Feb', 'Mar', 'Abr', 'Maig', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Des'],
+  },
+  en: {
+    appTitle: 'Bicing near me',
+    appSubtitle: 'Barcelona · stations and availability forecast',
+    statusReady: 'Ready',
+    statusInitializing: 'Initializing…',
+    statusComputing: 'Calculating distances…',
+    nearestTitle: 'Nearest stations',
+    nearestEmptyLoading: 'Locating your position and stations…',
+    nearestEmptyNone: 'No nearby stations available.',
+    loadingTitle: 'Starting the app…',
+    loadingLocation: 'Locating your position on the street…',
+    loadingStations: 'Loading stations…',
+    predictBtn: 'Predict availability',
+    predictUpdating: 'Update prediction',
+    predictCalculating: 'Calculating…',
+    predictionTitle: 'Availability forecast',
+    predictionHint: 'Tap "Predict" to see future availability.',
+    miniPredTitle: 'Forecasted availability',
+    miniPredTime: '+5 / +10 min',
+    labelMechanical: 'Mechanical',
+    labelElectric: 'Electric',
+    labelDocks: 'Docks',
+    labelCapacity: 'docks',
+    tooltipDistanceWalking: 'Walking distance:',
+    tooltipDistanceApprox: 'Approx. distance:',
+    tooltipStraightLine: ' (straight line)',
+    popupRank: ' nearest',
+    userLocationTitle: 'Your location',
+    userLocationSnapped: 'Snapped to nearest street',
+    userLocationApprox: 'Approximate position',
+    footerData: 'Data from the Barcelona public bike stations API',
+    footerModels: 'Predictions using per-station LSTM models',
+    footerLegendPin: '3 nearest',
+    footerLegendDot: 'other stations',
+    errorFallback: 'Unknown error',
+    errorTimeout: 'The request took too long. Make sure informacion_api.py is running.',
+    errorConnection: 'Could not connect to the API. Make sure to run: python backend/api/informacion_api.py',
+    months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  },
+};
+
+const useTranslation = () => {
+  const [lang, setLang] = useState(() => {
+    const saved = typeof localStorage !== 'undefined' ? localStorage.getItem('bicing-lang') : null;
+    return saved && translations[saved] ? saved : 'es';
+  });
+
+  const setLanguage = (code) => {
+    if (translations[code]) {
+      setLang(code);
+      try {
+        localStorage.setItem('bicing-lang', code);
+      } catch {
+        // localStorage puede estar bloqueado
+      }
+    }
+  };
+
+  return { lang, t: translations[lang], setLanguage };
+};
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import './App.css';
@@ -75,6 +217,62 @@ const MAX_SNAP_DISTANCE_METERS = 180;
 // Da formato legible a una distancia en kilómetros: en metros si es corta,
 // o en km con dos decimales si es más larga.
 const formatDistance = (km) => (km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(2)} km`);
+
+// ---------- Banderas ----------
+
+const FlagES = ({ className = 'lang-flag' }) => (
+  <svg className={className} viewBox="0 0 640 480" aria-label="Español">
+    <path fill="#AA151B" d="M0 0h640v480H0z" />
+    <path fill="#F1BF00" d="M0 120h640v240H0z" />
+    <path fill="#AA151B" d="M0 0h640v120H0zM0 360h640v120H0z" />
+    <g transform="translate(160, 160) scale(0.6)">
+      <path fill="#AA151B" d="M0 0h160v160H0z" />
+    </g>
+  </svg>
+);
+
+const FlagCA = ({ className = 'lang-flag' }) => (
+  <svg className={className} viewBox="0 0 640 480" aria-label="Català">
+    <rect fill="#FCDD09" width="640" height="480" />
+    <path stroke="#DA121A" strokeWidth="48" d="M0 96h640M0 192h640M0 288h640M0 384h640" />
+  </svg>
+);
+
+const FlagGB = ({ className = 'lang-flag' }) => (
+  <svg className={className} viewBox="0 0 640 480" aria-label="English">
+    <path fill="#012169" d="M0 0h640v480H0z" />
+    <path fill="#FFF" d="M0 0l640 480M640 0L0 480" stroke="#FFF" strokeWidth="96" />
+    <path fill="#C8102E" d="M0 0l640 480M640 0L0 480" stroke="#C8102E" strokeWidth="64" />
+    <path fill="#FFF" d="M320 0v480M0 200h640" stroke="#FFF" strokeWidth="160" />
+    <path fill="#C8102E" d="M320 0v480M0 200h640" stroke="#C8102E" strokeWidth="96" />
+  </svg>
+);
+
+const LanguageSelector = ({ lang, setLanguage }) => {
+  const options = [
+    { code: 'es', label: 'ES', Flag: FlagES },
+    { code: 'ca', label: 'CA', Flag: FlagCA },
+    { code: 'en', label: 'EN', Flag: FlagGB },
+  ];
+
+  return (
+    <div className="language-selector" role="group" aria-label="Seleccionar idioma">
+      {options.map(({ code, label, Flag }) => (
+        <button
+          key={code}
+          type="button"
+          className={`language-option ${lang === code ? 'active' : ''}`}
+          onClick={() => setLanguage(code)}
+          aria-pressed={lang === code}
+          title={label}
+        >
+          <Flag className="lang-flag" />
+          <span>{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+};
 
 // Convierte el objeto { "<station_id>": { address, capacity, latitud, longitud, post_code } }
 // devuelto por la API en un array de estaciones fácil de renderizar en el mapa.
@@ -401,6 +599,8 @@ function FlyToLocation({ position, zoom }) {
 }
 
 function App() {
+  const { lang, t, setLanguage } = useTranslation();
+
   const [stations, setStations] = useState([]);
   const [loadingStations, setLoadingStations] = useState(true);
   const [userLocation, setUserLocation] = useState(null);
@@ -522,7 +722,7 @@ function App() {
       });
       clearTimeout(timeoutId);
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error desconocido');
+      if (!res.ok) throw new Error(data.error || t.errorFallback);
 
       // Log de seguridad en consola con los valores no redondeados
       // recibidos desde informacion_api.py (antes de mostrarlos redondeados).
@@ -540,8 +740,7 @@ function App() {
       if (err.name === 'AbortError') {
         setPredictionError((prev) => ({
           ...prev,
-          [stationId]:
-            'La petición ha tardado demasiado. Asegúrate de que informacion_api.py esté en ejecución.',
+          [stationId]: t.errorTimeout,
         }));
         return;
       }
@@ -552,9 +751,7 @@ function App() {
         err.message?.includes('Failed to fetch') ||
         err.message?.includes('NetworkError') ||
         err.message?.includes('connection refused');
-      const friendlyMessage = isConnectionError
-        ? 'No se pudo conectar con la API. Asegúrate de ejecutar: python backend/api/informacion_api.py'
-        : err.message;
+      const friendlyMessage = isConnectionError ? t.errorConnection : err.message;
       setPredictionError((prev) => ({ ...prev, [stationId]: friendlyMessage }));
     } finally {
       clearTimeout(timeoutId);
@@ -571,10 +768,10 @@ function App() {
 
   const loading = loadingStations || loadingLocation;
   const statusText = loading
-    ? 'Inicializando…'
+    ? t.statusInitializing
     : computingNearest
-      ? 'Calculando distancias…'
-      : 'Listo';
+      ? t.statusComputing
+      : t.statusReady;
 
   return (
     <div className="dashboard">
@@ -584,13 +781,16 @@ function App() {
             <Bike size={22} color="#fff" />
           </div>
           <div>
-            <h1>Bicing cerca de mí</h1>
-            <p>Barcelona · estaciones y predicción de disponibilidad</p>
+            <h1>{t.appTitle}</h1>
+            <p>{t.appSubtitle}</p>
           </div>
         </div>
-        <div className="header-status">
-          <span className={`status-dot ${loading || computingNearest ? 'loading' : ''}`}></span>
-          {statusText}
+        <div className="header-actions">
+          <div className="header-status">
+            <span className={`status-dot ${loading || computingNearest ? 'loading' : ''}`}></span>
+            {statusText}
+          </div>
+          <LanguageSelector lang={lang} setLanguage={setLanguage} />
         </div>
       </header>
 
@@ -605,22 +805,23 @@ function App() {
           loading={loading}
           onPredict={fetchPrediction}
           onSelect={setSelectedStationId}
+          t={t}
         />
 
         {/* Mapa */}
         <main className="map-container">
         {loading && (
           <div className="program-loader">
-            <div className="loader-pulse" aria-label="Cargando">
+            <div className="loader-pulse" aria-label={t.loadingTitle}>
               <span></span>
               <span></span>
               <span></span>
             </div>
-            <p className="loader-title">Abriendo el programa…</p>
+            <p className="loader-title">{t.loadingTitle}</p>
             <p className="loader-detail">
               {loadingLocation
-                ? 'Localizando tu posición en la calle…'
-                : 'Cargando estaciones…'}
+                ? t.loadingLocation
+                : t.loadingStations}
             </p>
           </div>
         )}
@@ -673,12 +874,12 @@ function App() {
             >
               <Tooltip direction="top" offset={[0, -36]} opacity={1}>
                 <div className="tooltip-content">
-                  <span><strong>{index + 1}ª más cercana</strong> · {s.name}</span>
+                  <span><strong>{index + 1}{t.popupRank}</strong> · {s.name}</span>
                   {s.postCode && <span><strong>CP:</strong> {s.postCode}</span>}
                   <span>
-                    <strong>{s.isWalkingDistance ? 'Distancia a pie:' : 'Distancia aprox.:'}</strong>{' '}
+                    <strong>{s.isWalkingDistance ? t.tooltipDistanceWalking : t.tooltipDistanceApprox}</strong>{' '}
                     {formatDistance(s.distanceKm)}
-                    {!s.isWalkingDistance && ' (línea recta)'}
+                    {!s.isWalkingDistance && t.tooltipStraightLine}
                   </span>
                 </div>
               </Tooltip>
@@ -686,27 +887,28 @@ function App() {
                 <div className="popup-card">
                   <div className="popup-header">
                     <h3>
-                      {index + 1}ª más cercana · {s.name}
+                      {index + 1}{t.popupRank} · {s.name}
                     </h3>
                     <div className="popup-header-meta">
-                      <span>{s.capacity ?? '?'} anclajes</span>
+                      <span>{s.capacity ?? '?'} {t.labelCapacity}</span>
                       {s.postCode && <span>CP {s.postCode}</span>}
                     </div>
                   </div>
                   <div className="popup-body">
                     <span className={`popup-distance ${s.isWalkingDistance ? 'walking' : ''}`}>
                       <Navigation size={14} />
-                      {s.isWalkingDistance ? 'Distancia caminando: ' : 'Distancia aprox.: '}
+                      {s.isWalkingDistance ? t.tooltipDistanceWalking : t.tooltipDistanceApprox}{' '}
                       {formatDistance(s.distanceKm)}
-                      {!s.isWalkingDistance && ' (línea recta)'}
+                      {!s.isWalkingDistance && t.tooltipStraightLine}
                     </span>
                     <div className="prediction-section">
-                      <strong>Predicción de disponibilidad</strong>
+                      <strong>{t.predictionTitle}</strong>
                       <PredictionSummary
                         pred={predictions[s.id]}
                         isLoading={predictionLoading[s.id]}
                         hasError={predictionError[s.id]}
                         capacity={s.capacity}
+                        t={t}
                       />
                     </div>
                   </div>
@@ -721,12 +923,12 @@ function App() {
               <Popup>
                 <div className="popup-card">
                   <div className="popup-header">
-                    <h3>Tu ubicación</h3>
+                    <h3>{t.userLocationTitle}</h3>
                   </div>
                   <div className="popup-body">
                     <span className="popup-distance walking">
                       <MapPin size={14} />
-                      {userLocation.snapped ? 'Ajustada a la calle más cercana' : 'Posición aproximada'}
+                      {userLocation.snapped ? t.userLocationSnapped : t.userLocationApprox}
                     </span>
                   </div>
                 </div>
@@ -739,11 +941,11 @@ function App() {
 
       <footer className="dashboard-footer">
         <span>
-          Datos de la API de estaciones de bicicletas públicas de Barcelona · Predicciones con modelos LSTM por estación
+          {t.footerData} · {t.footerModels}
         </span>
         <span className="footer-legend">
-          <span className="legend-pin"></span> 3 más cercanas ·
-          <span className="legend-dot"></span> resto de estaciones
+          <span className="legend-pin"></span> {t.footerLegendPin} ·
+          <span className="legend-dot"></span> {t.footerLegendDot}
         </span>
       </footer>
     </div>
@@ -752,17 +954,17 @@ function App() {
 
 // ---------- Componentes auxiliares ----------
 
-function PredictionSummary({ pred, isLoading, hasError, capacity }) {
+function PredictionSummary({ pred, isLoading, hasError, capacity, t }) {
   if (isLoading) {
     return (
       <div className="prediction-spinner">
-        <div className="spinner-ring" aria-label="Calculando predicción"></div>
-        <span className="prediction-loading">Calculando predicción…</span>
+        <div className="spinner-ring" aria-label={t.predictCalculating}></div>
+        <span className="prediction-loading">{t.predictCalculating}</span>
       </div>
     );
   }
-  if (hasError) return <span className="prediction-error">Error: {hasError}</span>;
-  if (!pred) return <span className="prediction-hint">Pulsa "Predecir" para ver la disponibilidad futura.</span>;
+  if (hasError) return <span className="prediction-error">{hasError}</span>;
+  if (!pred) return <span className="prediction-hint">{t.predictionHint}</span>;
 
   const p5 = pred.predictions?.find((p) => p.horizon_minutes === 5);
   const p10 = pred.predictions?.find((p) => p.horizon_minutes === 10);
@@ -784,17 +986,17 @@ function PredictionSummary({ pred, isLoading, hasError, capacity }) {
       </thead>
       <tbody>
         <tr>
-          <td><Bike size={14} /> Mecánicas</td>
+          <td><Bike size={14} /> {t.labelMechanical}</td>
           <td>{nbm5}</td>
           <td>{nbm10}</td>
         </tr>
         <tr>
-          <td><Zap size={14} /> Eléctricas</td>
+          <td><Zap size={14} /> {t.labelElectric}</td>
           <td>{nbe5}</td>
           <td>{nbe10}</td>
         </tr>
         <tr>
-          <td><Lock size={14} /> Docks</td>
+          <td><Lock size={14} /> {t.labelDocks}</td>
           <td>{docks5}</td>
           <td>{docks10}</td>
         </tr>
@@ -803,19 +1005,19 @@ function PredictionSummary({ pred, isLoading, hasError, capacity }) {
   );
 }
 
-function StationSidebar({ nearestStations, predictions, predictionLoading, predictionError, selectedStationId, loading, onPredict, onSelect }) {
+function StationSidebar({ nearestStations, predictions, predictionLoading, predictionError, selectedStationId, loading, onPredict, onSelect, t }) {
   return (
     <aside className="stations-sidebar">
       <h2 className="sidebar-title">
         <MapPin size={16} />
-        Estaciones más cercanas
+        {t.nearestTitle}
       </h2>
       <div className="sidebar-list">
         {nearestStations.length === 0 ? (
           <div className="sidebar-empty">
             {loading
-              ? 'Localizando tu posición y estaciones…'
-              : 'No hay estaciones cercanas disponibles.'}
+              ? t.nearestEmptyLoading
+              : t.nearestEmptyNone}
           </div>
         ) : (
           nearestStations.map((s, index) => (
@@ -829,6 +1031,7 @@ function StationSidebar({ nearestStations, predictions, predictionLoading, predi
               isActive={selectedStationId === s.id}
               onPredict={() => onPredict(s.id)}
               onSelect={() => onSelect(s.id)}
+              t={t}
             />
           ))
         )}
@@ -837,7 +1040,7 @@ function StationSidebar({ nearestStations, predictions, predictionLoading, predi
   );
 }
 
-function StationCard({ s, index, pred, isLoading, hasError, isActive, onPredict, onSelect }) {
+function StationCard({ s, index, pred, isLoading, hasError, isActive, onPredict, onSelect, t }) {
   const p5 = pred?.predictions?.find((p) => p.horizon_minutes === 5);
   const p10 = pred?.predictions?.find((p) => p.horizon_minutes === 10);
 
@@ -852,11 +1055,11 @@ function StationCard({ s, index, pred, isLoading, hasError, isActive, onPredict,
         <span className={`station-card-distance ${s.isWalkingDistance ? 'walking' : ''}`}>
           <Navigation size={12} />
           {formatDistance(s.distanceKm)}
-          {!s.isWalkingDistance && ' (recta)'}
+          {!s.isWalkingDistance && t.tooltipStraightLine}
         </span>
       </div>
       <div className="station-card-meta">
-        <span><MapPin size={12} /> {s.capacity ?? '?'} anclajes</span>
+        <span><MapPin size={12} /> {s.capacity ?? '?'} {t.labelCapacity}</span>
         {s.postCode && <span>CP {s.postCode}</span>}
       </div>
       <button
@@ -867,18 +1070,18 @@ function StationCard({ s, index, pred, isLoading, hasError, isActive, onPredict,
           onPredict();
         }}
       >
-        {isLoading ? 'Calculando…' : pred ? 'Actualizar predicción' : 'Predecir disponibilidad'}
+        {isLoading ? t.predictCalculating : pred ? t.predictUpdating : t.predictBtn}
       </button>
       {pred && (
         <div className="mini-prediction">
           <div className="mini-prediction-header">
-            <span className="mini-prediction-title">Disponibilidad prevista</span>
-            <span className="mini-prediction-time"><Timer size={10} /> +5 / +10 min</span>
+            <span className="mini-prediction-title">{t.miniPredTitle}</span>
+            <span className="mini-prediction-time"><Timer size={10} /> {t.miniPredTime}</span>
           </div>
           <div className="mini-prediction-grid">
-            <span className="mini-prediction-cell label"> <Bike size={14} />  Mecánicas</span>
-            <span className="mini-prediction-cell label"> <Zap size={14} /> Eléctricas</span>
-            <span className="mini-prediction-cell label"> <Lock size={14} /> Docks</span>
+            <span className="mini-prediction-cell label"><Bike size={14} /> {t.labelMechanical}</span>
+            <span className="mini-prediction-cell label"><Zap size={14} /> {t.labelElectric}</span>
+            <span className="mini-prediction-cell label"><Lock size={14} /> {t.labelDocks}</span>
             <span className="mini-prediction-cell"><strong>{Math.round(p5?.nbm ?? 0)}</strong><small>+5</small></span>
             <span className="mini-prediction-cell"><strong>{Math.round(p5?.nbe ?? 0)}</strong><small>+5</small></span>
             <span className="mini-prediction-cell"><strong>{Math.max(0, (s.capacity ?? 0) - Math.round(p5?.nbm ?? 0) - Math.round(p5?.nbe ?? 0))}</strong><small>+5</small></span>
