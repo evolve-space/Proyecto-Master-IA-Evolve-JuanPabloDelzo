@@ -221,6 +221,9 @@ Station information  +  Station status  +  Weather
    pnpm dev
    ```
 
+> **Quick start on Windows**: run `backend/scripts/arrancar.bat` to open the three
+> services in separate terminals at once.
+>
 > **Note**: predictions are served by loading a pre-trained model from MLflow. The
 > first call for a station downloads the model artifacts (~20-30 s); subsequent
 > calls for the same station reuse an in-memory cache.

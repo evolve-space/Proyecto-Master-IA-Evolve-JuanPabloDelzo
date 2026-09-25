@@ -48,7 +48,7 @@ COLUMNS = ["station_id", "latitud", "longitud", "address", "post_code", "capacit
 # modelo Keras en cada petición de predicción.
 from collections import OrderedDict
 
-MAX_CACHED_MODELS = 50
+MAX_CACHED_MODELS = 20
 _model_cache: OrderedDict[int, dict] = OrderedDict()
 
 # Configurar MLflow una sola vez al iniciar la API.
@@ -193,9 +193,11 @@ def predict():
             1, LOOKBACK, len(feature_cols)
         )
 
-        # Predecir y desescalar.
+        # Predecir y desescalar. Se usa predict_on_batch en lugar de predict
+        # para reducir el overhead y el retracing continuo de tf.function al
+        # alternar entre modelos de distintas estaciones.
         horizon_steps = [h // STEP_MINUTES for h in HORIZONTES_MIN]
-        pred_scaled = model.predict(ultima_ventana, verbose=0)[0]
+        pred_scaled = model.predict_on_batch(np.float32(ultima_ventana))[0]
         pred_matrix_scaled = pred_scaled.reshape(len(horizon_steps), len(TARGET_COLS))
         pred_matrix = scaler_y.inverse_transform(pred_matrix_scaled)
 
@@ -224,4 +226,6 @@ def predict():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5002, debug=True)
+    # debug=False evita el recargador de Flask, que en Windows puede detectar
+    # cambios en archivos del sistema y reiniciar el proceso constantemente.
+    app.run(host="0.0.0.0", port=5002, debug=False)
