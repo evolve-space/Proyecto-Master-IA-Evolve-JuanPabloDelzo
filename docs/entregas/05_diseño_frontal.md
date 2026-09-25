@@ -28,7 +28,7 @@ La interfaz se divide en cuatro zonas:
 
 La siguiente imagen ilustra el resultado visual actual del frontend:
 
-![Mockup frontal](../assets/05_mockup_frontal.png)
+![Mockup frontal](../assets/05_mockup_frontal_v2.png)
 
 ## 4. Pasos implementados
 
