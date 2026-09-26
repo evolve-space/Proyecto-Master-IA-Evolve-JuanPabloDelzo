@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import MarkerClusterGroup from 'react-leaflet-cluster';
 import { divIcon } from 'leaflet';
-import { Bike, Lock, MapPin, Navigation, Timer, Zap } from 'lucide-react';
+import { Bike, Lock, MapPin, Menu, Navigation, Timer, X, Zap } from 'lucide-react';
 import 'leaflet/dist/leaflet.css';
 
 // ---------- Internacionalización ----------
@@ -15,6 +15,8 @@ const translations = {
     statusInitializing: 'Inicializando…',
     statusComputing: 'Calculando distancias…',
     nearestTitle: 'Estaciones más cercanas',
+    showStations: 'Ver estaciones',
+    hideStations: 'Ocultar',
     nearestEmptyLoading: 'Localizando tu posición y estaciones…',
     nearestEmptyNone: 'No hay estaciones cercanas disponibles.',
     loadingTitle: 'Abriendo el programa…',
@@ -54,6 +56,8 @@ const translations = {
     statusInitializing: 'Inicialitzant…',
     statusComputing: 'Calculant distàncies…',
     nearestTitle: 'Estacions més properes',
+    showStations: 'Veure estacions',
+    hideStations: 'Amagar',
     nearestEmptyLoading: 'Localitzant la teva posició i les estacions…',
     nearestEmptyNone: 'No hi ha estacions properes disponibles.',
     loadingTitle: 'Obrint el programa…',
@@ -93,6 +97,8 @@ const translations = {
     statusInitializing: 'Initializing…',
     statusComputing: 'Calculating distances…',
     nearestTitle: 'Nearest stations',
+    showStations: 'Show stations',
+    hideStations: 'Hide',
     nearestEmptyLoading: 'Locating your position and stations…',
     nearestEmptyNone: 'No nearby stations available.',
     loadingTitle: 'Starting the app…',
@@ -146,6 +152,20 @@ const useTranslation = () => {
 
   return { lang, t: translations[lang], setLanguage };
 };
+
+const useWindowWidth = () => {
+  const [width, setWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return width;
+};
+
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import './App.css';
@@ -600,6 +620,9 @@ function FlyToLocation({ position, zoom }) {
 
 function App() {
   const { lang, t, setLanguage } = useTranslation();
+  const windowWidth = useWindowWidth();
+  const isMobile = windowWidth < 768;
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   const [stations, setStations] = useState([]);
   const [loadingStations, setLoadingStations] = useState(true);
@@ -759,6 +782,11 @@ function App() {
     }
   };
 
+  const handleSelectStation = (stationId) => {
+    setSelectedStationId(stationId);
+    if (isMobile) setMobileSidebarOpen(false);
+  };
+
   // El resto de estaciones (todas menos las 3 más cercanas) se muestran
   // solo como contexto visual, atenuadas.
   const otherStations = useMemo(() => {
@@ -794,7 +822,7 @@ function App() {
         </div>
       </header>
 
-      <div className="dashboard-body">
+      <div className={`dashboard-body ${mobileSidebarOpen ? 'mobile-sidebar-open' : ''}`}>
         {/* Sidebar con las 3 estaciones más cercanas */}
         <StationSidebar
           nearestStations={nearestStations}
@@ -804,7 +832,7 @@ function App() {
           selectedStationId={selectedStationId}
           loading={loading}
           onPredict={fetchPrediction}
-          onSelect={setSelectedStationId}
+          onSelect={handleSelectStation}
           t={t}
         />
 
@@ -936,6 +964,18 @@ function App() {
             </Marker>
           )}
         </MapContainer>
+
+        {isMobile && (
+          <button
+            type="button"
+            className="mobile-sidebar-toggle"
+            onClick={() => setMobileSidebarOpen((open) => !open)}
+            aria-label={mobileSidebarOpen ? t.hideStations : t.showStations}
+          >
+            {mobileSidebarOpen ? <X size={22} color="#fff" /> : <Menu size={22} color="#fff" />}
+            <span>{mobileSidebarOpen ? t.hideStations : t.showStations}</span>
+          </button>
+        )}
         </main>
       </div>
 

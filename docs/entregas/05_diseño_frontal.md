@@ -63,6 +63,8 @@ Las tres estaciones más cercanas se renderizan como tarjetas en el sidebar:
 
 Las tarjetas son clicables: seleccionan la estación y, al pulsar el botón, obtienen o actualizan la predicción.
 
+En dispositivos móviles el panel lateral se transforma en un **panel inferior deslizable**. Un botón flotante rosa en la esquina inferior derecha del mapa permite abrirlo o cerrarlo, de modo que el mapa ocupe todo el espacio disponible y el usuario lo consulte sin distracciones. Al pulsar una tarjeta, el panel se cierra automáticamente y la estación seleccionada se centra en el mapa.
+
 ### 4.5 Renderizado del mapa
 
 - La capa base se obtiene de OpenStreetMap.
@@ -100,7 +102,7 @@ El selector de idioma se ubica en la cabecera, a la derecha del badge de estado.
 - **Tooltips**: al pasar el ratón sobre los marcadores destacados, con dirección, código postal y distancia.
 - **Iconos de `lucide-react`**: header, tarjetas del sidebar, popups y tabla de predicciones.
 - **Diferenciación visual**: las 3 estaciones más cercanas usan pins rosas numerados; el resto aparece como pequeños puntos grises neutros, con leyenda en el pie para evitar confusión.
-- **Responsive**: en pantallas estrechas el sidebar pasa a una banda horizontal sobre el mapa.
+- **Responsive**: en pantallas estrechas el sidebar se convierte en un panel inferior deslizable con un botón flotante rosa para mostrarlo u ocultarlo; el header, los popups y la tabla de predicciones se escalan para ocupar todo el ancho disponible sin romper el diseño.
 
 ## 5. Integración con el backend
 
@@ -123,4 +125,5 @@ mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-a
 - El sidebar muestra un resumen compacto de la predicción; el popup del mapa ofrece el detalle completo.
 - El footer incluye una leyenda visual: pin rosa numerado = 3 estaciones más cercanas; punto gris = resto de estaciones.
 - El selector de idioma y las traducciones están implementados de forma interna en el frontend sin librería externa, facilitando su mantenimiento y ampliación.
+- En móvil el panel de estaciones se presenta como un *bottom sheet* deslizable controlado por un botón flotante; no es necesario un proyecto frontend separado porque el diseño responsive se gestiona con media queries y estados locales de React.
 - Desde la consola del navegador también se puede ver los resultados originales que arroja el modelo LSTM.
