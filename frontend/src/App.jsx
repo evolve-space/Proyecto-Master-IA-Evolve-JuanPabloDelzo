@@ -33,6 +33,7 @@ const translations = {
     labelElectric: 'Eléctricas',
     labelDocks: 'Docks',
     labelCapacity: 'anclajes',
+    labelPostCode: 'CP',
     tooltipDistanceWalking: 'Distancia a pie:',
     tooltipDistanceApprox: 'Distancia aprox.:',
     tooltipStraightLine: ' (línea recta)',
@@ -74,6 +75,7 @@ const translations = {
     labelElectric: 'Elèctriques',
     labelDocks: 'Ancoratges',
     labelCapacity: 'ancoratges',
+    labelPostCode: 'CP',
     tooltipDistanceWalking: 'Distància a peu:',
     tooltipDistanceApprox: 'Distància aprox.:',
     tooltipStraightLine: ' (línia recta)',
@@ -115,6 +117,7 @@ const translations = {
     labelElectric: 'Electric',
     labelDocks: 'Docks',
     labelCapacity: 'docks',
+    labelPostCode: 'PC',
     tooltipDistanceWalking: 'Walking distance:',
     tooltipDistanceApprox: 'Approx. distance:',
     tooltipStraightLine: ' (straight line)',
@@ -903,7 +906,7 @@ function App() {
               <Tooltip direction="top" offset={[0, -36]} opacity={1}>
                 <div className="tooltip-content">
                   <span><strong>{index + 1}{t.popupRank}</strong> · {s.name}</span>
-                  {s.postCode && <span><strong>CP:</strong> {s.postCode}</span>}
+                  {s.postCode && <span><strong>{t.labelPostCode}:</strong> {s.postCode}</span>}
                   <span>
                     <strong>{s.isWalkingDistance ? t.tooltipDistanceWalking : t.tooltipDistanceApprox}</strong>{' '}
                     {formatDistance(s.distanceKm)}
@@ -919,7 +922,7 @@ function App() {
                     </h3>
                     <div className="popup-header-meta">
                       <span>{s.capacity ?? '?'} {t.labelCapacity}</span>
-                      {s.postCode && <span>CP {s.postCode}</span>}
+                      {s.postCode && <span>{t.labelPostCode} {s.postCode}</span>}
                     </div>
                   </div>
                   <div className="popup-body">
@@ -1100,7 +1103,7 @@ function StationCard({ s, index, pred, isLoading, hasError, isActive, onPredict,
       </div>
       <div className="station-card-meta">
         <span><MapPin size={12} /> {s.capacity ?? '?'} {t.labelCapacity}</span>
-        {s.postCode && <span>CP {s.postCode}</span>}
+        {s.postCode && <span>{t.labelPostCode} {s.postCode}</span>}
       </div>
       <button
         className="station-card-predict"
