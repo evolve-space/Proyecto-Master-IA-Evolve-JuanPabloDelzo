@@ -178,9 +178,31 @@ def predict():
         scaler_y = cached["scaler_y"]
         feature_cols = cached["feature_cols"]
 
-        # Obtener datos históricos de la estación.
+        # Obtener datos recientes de la estación. Solo hace falta el
+        # histórico suficiente para la ventana LOOKBACK (24 pasos = 2 h)
+        # más margen por lags e imputación. Como el histórico termina en
+        # una fecha fija, `since` se calcula respecto al MAX(datetime) de
+        # la tabla, no respecto a la fecha actual.
+        conn = mysql.connector.connect(**get_connection_params(DB_NAME))
+        try:
+            cursor = conn.cursor()
+            cursor.execute(
+                "SELECT MAX(datetime) FROM estado WHERE station_id = %s",
+                (station_id,),
+            )
+            ultimo_dt = cursor.fetchone()[0]
+            cursor.close()
+        finally:
+            conn.close()
+
+        if ultimo_dt is None:
+            return jsonify(
+                {"error": f"La estación {station_id} no tiene datos históricos"}
+            ), 404
+
         bicis = LSTMbicis._import_bicis()
-        df = bicis(station_id)
+        desde = (pd.Timestamp(ultimo_dt) - pd.Timedelta(days=3)).strftime("%Y-%m-%d")
+        df = bicis(station_id, since=desde)
 
         # Preparar features con la misma lógica usada en entrenamiento.
         modelo = LSTMbicis(station_id=station_id)

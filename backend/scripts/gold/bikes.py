@@ -26,22 +26,31 @@ def _import_fetch_clima_bcn():
     return module.fetch_clima_barcelona
 
 
-def cargar_estado_station(station_id: int):
+# Cache en memoria del DataFrame de clima: los datos son históricos con
+# rango fijo (2021-01-01 a 2025-09-30), por lo que descargarlos de
+# Open-Meteo en cada llamada a `bicis` es innecesario y muy lento.
+_CLIMA_CACHE = None
+
+
+def cargar_estado_station(station_id: int, since: str = "2021-01-01"):
     """
     Carga el estado de una estación desde la base de datos.
-    
+
     Args:
         station_id: ID de la estación a consultar
-        
+        since: fecha mínima (inclusive) en formato 'YYYY-MM-DD' desde la
+            que cargar el histórico. Por defecto carga todo desde 2021;
+            para inferencia en tiempo real basta con los últimos días.
+
     Returns:
         DataFrame con el estado de la estación
     """
     query = """
           WITH aux_table AS (
-          SELECT 
+          SELECT
               datetime,
               num_bikes_available_mechanical AS nbm,
-              num_bikes_available_ebike AS nbe, 
+              num_bikes_available_ebike AS nbe,
               HOUR(datetime) AS hour,
               HOUR(datetime) + MINUTE(datetime)/60 AS h,
               dayofweek(datetime) AS day_week,
@@ -51,7 +60,7 @@ def cargar_estado_station(station_id: int):
                   ELSE 365
               END AS days_in_year
           FROM estado
-          WHERE station_id = %s AND datetime >= '2021-01-01'
+          WHERE station_id = %s AND datetime >= %s
           ORDER BY datetime ASC)
           SELECT 
               datetime,
@@ -72,34 +81,41 @@ def cargar_estado_station(station_id: int):
           """
     engine = create_engine(get_sqlalchemy_url())
     with engine.connect() as conn:
-        df = pd.read_sql(query, conn, params=(station_id,))
+        df = pd.read_sql(query, conn, params=(station_id, since))
     return df
 
 ###################################
 #######  FUNCIÓN PRINCIPAL ########
 ###################################
 
-def bicis(station_id: int):
+def bicis(station_id: int, since: str = "2021-01-01"):
     """
     Carga el estado de una estación y el clima de Barcelona,
     luego une ambos datasets por fecha y hora.
-    
+
     Args:
         station_id: ID de la estación a consultar
-        
+        since: fecha mínima (inclusive) en formato 'YYYY-MM-DD' desde la
+            que cargar el histórico de la estación. El clima se cachea en
+            memoria tras la primera descarga.
+
     Returns:
         DataFrame con el estado de la estación y el clima
     """
+    global _CLIMA_CACHE
+
     #1.Estado de las estación
-    df_estado = cargar_estado_station(station_id)
+    df_estado = cargar_estado_station(station_id, since=since)
     df_estado = df_estado.assign(
         datetime=pd.to_datetime(df_estado.datetime),
         date=df_estado.datetime.dt.strftime("%Y-%m-%d")
     )
-    
-    #2.Clima y festivos
-    fetch_clima_barcelona = _import_fetch_clima_bcn()
-    df_clima = fetch_clima_barcelona()
+
+    #2.Clima y festivos (cacheado: el rango histórico es fijo)
+    if _CLIMA_CACHE is None:
+        fetch_clima_barcelona = _import_fetch_clima_bcn()
+        _CLIMA_CACHE = fetch_clima_barcelona()
+    df_clima = _CLIMA_CACHE
     
     #3.Unión de los dos datasets
     df_merged = pd.merge(
