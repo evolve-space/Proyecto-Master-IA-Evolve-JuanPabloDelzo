@@ -250,4 +250,4 @@ def predict():
 if __name__ == "__main__":
     # debug=False evita el recargador de Flask, que en Windows puede detectar
     # cambios en archivos del sistema y reiniciar el proceso constantemente.
-    app.run(host="0.0.0.0", port=5002, debug=False)
+    app.run(host="0.0.0.0", port=5002, debug=False, threaded=True)
