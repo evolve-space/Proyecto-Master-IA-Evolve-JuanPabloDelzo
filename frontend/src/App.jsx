@@ -227,6 +227,21 @@ const BCN_BOUNDS = { minLat: 41.15, maxLat: 41.55, minLon: 1.9, maxLon: 2.35 };
 // control de snap a calle descartan agua, montaña sin aceras, etc.
 const BCN_CITY_BOUNDS = { minLat: 41.32, maxLat: 41.47, minLon: 2.05, maxLon: 2.23 };
 
+// Zona excluida para la ubicación del usuario: el macizo de Collserola
+// (Vallvidrera, Tibidabo, Carretera de les Aigües, Les Planes...), que
+// pertenece al término municipal de Barcelona pero es montaña/parque
+// natural sin trama urbana densa ni estaciones de Bicing. El anillo está
+// en formato [lon, lat] para reutilizar isPointInRing.
+const COLLSEROLA_EXCLUSION_RING = [
+  [2.075, 41.398],
+  [2.058, 41.42],
+  [2.085, 41.455],
+  [2.1, 41.47],
+  [2.132, 41.435],
+  [2.128, 41.415],
+  [2.115, 41.405],
+];
+
 // Zona urbana central segura, usada únicamente como fallback si todo lo
 // demás falla. Garantiza que, incluso sin servicios externos, la
 // ubicación del usuario caiga en una calle real de Barcelona.
@@ -445,6 +460,7 @@ const generateUserLocationOnStreet = async (attempts = 6) => {
 
   for (let i = 0; i < attempts; i += 1) {
     const { lat, lon } = randomUserPoint();
+    if (isPointInRing(lat, lon, COLLSEROLA_EXCLUSION_RING)) continue;
     if (!isPointInBarcelona(lat, lon, barcelonaPolygon)) continue;
 
     try {
@@ -468,9 +484,13 @@ const generateUserLocationOnStreet = async (attempts = 6) => {
 
       const [snappedLon, snappedLat] = snapped;
       // Cerca del límite municipal, el punto ajustado a la calle más
-      // cercana podría caer en un municipio vecino: se descarta y se
-      // reintenta en ese caso.
-      if (isPointInBarcelona(snappedLat, snappedLon, barcelonaPolygon)) {
+      // cercana podría caer en un municipio vecino o en el macizo de
+      // Collserola (Carretera de Vallvidrera, Tibidabo...): se descarta
+      // y se reintenta en ese caso.
+      if (
+        isPointInBarcelona(snappedLat, snappedLon, barcelonaPolygon) &&
+        !isPointInRing(snappedLat, snappedLon, COLLSEROLA_EXCLUSION_RING)
+      ) {
         return { lat: snappedLat, lon: snappedLon, snapped: true };
       }
     } catch {
