@@ -227,10 +227,10 @@ data/
 errores_entrenamiento.csv
 
 # Archivos de prueba
-backend/sripts/test_load_model.py
+**/test_load_model.py
 
 # Instrucciones
-backend/script/intrucciones.txt
+arrancar.txt
 
 # Presentación del Power Point
 Presentacion
