@@ -120,7 +120,7 @@ mlflow server --backend-store-uri sqlite:///C:/Users/juand/mlflow.db --default-a
 ## 6. Consideraciones
 
 - El control de atribución de Leaflet está oculto en el mapa.
-- La predicción carga un modelo ya entrenado desde MLflow. La primera petición de una estación descarga los artifacts en el servidor (~20-30 s); las siguientes usan el cache en memoria y son casi inmediatas. El entrenamiento previo se realiza una sola vez con `backend/scripts/train_all_stations.py`.
+- La predicción carga un modelo ya entrenado desde MLflow. La primera petición de una estación descarga los artifacts en el servidor (~20-30 s); las siguientes usan el cache en memoria y son casi inmediatas. El entrenamiento previo se realiza una sola vez con `backend/pipelines/train_all_stations.py`.
 - Las distancias a pie se calculan con OSRM; si el servicio falla se muestra una distancia aproximada en línea recta.
 - El sidebar muestra un resumen compacto de la predicción; el popup del mapa ofrece el detalle completo.
 - El footer incluye una leyenda visual: pin rosa numerado = 3 estaciones más cercanas; punto gris = resto de estaciones.

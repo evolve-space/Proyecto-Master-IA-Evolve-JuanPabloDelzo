@@ -2,7 +2,7 @@
 reconstrucción de la serie a frecuencia fija.
 
 Este módulo contiene la lógica que antes vivía en
-`backend/scripts/gold/bikes.py`. Lo hemos movido a `backend/core` porque es
+`backend/scripts/gold/bikes.py` (posteriormente `backend/pipelines/etl/bikes.py`). Lo hemos movido a `backend/core` porque es
 usado tanto por el entrenamiento como por la API de predicción.
 """
 
@@ -19,7 +19,7 @@ from .db import get_sqlalchemy_url
 def _import_fetch_clima_bcn():
     """Importa la función fetch_clima_barcelona desde el script etl/04_fetch_clima_bcn.py."""
     module_path = (
-        Path(__file__).resolve().parent.parent / "scripts" / "etl" / "04_fetch_clima_bcn.py"
+        Path(__file__).resolve().parent.parent / "pipelines" / "etl" / "04_fetch_clima_bcn.py"
     )
     spec = importlib.util.spec_from_file_location("fetch_clima_bcn", module_path)
     module = importlib.util.module_from_spec(spec)

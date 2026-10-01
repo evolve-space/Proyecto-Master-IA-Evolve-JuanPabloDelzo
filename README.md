@@ -105,7 +105,7 @@ data/
 
 ### 🌤️ Weather data — Open-Meteo
 
-Hourly Barcelona data obtained from the **Open-Meteo** API (`backend/scripts/etl/04_fetch_clima_bcn.py`).
+Hourly Barcelona data obtained from the **Open-Meteo** API (`backend/pipelines/etl/04_fetch_clima_bcn.py`).
 
 - **Coordinates:** `41.3851`, `2.1734` (Barcelona)
 - **Period:** `2021-01-01` to `2025-09-30`
@@ -181,7 +181,7 @@ Station information  +  Station status  +  Weather
 │   │   ├── model.py                   ← LSTMbicis class: trains and predicts
 │   │   └── mlflow_client.py           ← MLflow run lookup and cached model loading
 │   │
-│   ├── 📂 scripts/                      ← Training and ETL scripts
+│   ├── 📂 pipelines/                    ← Training and ETL pipelines
 │   │   ├── train_all_stations.py      ← Trains one model per station and registers it in MLflow
 │   │   └── etl/                       ← Bronze → Silver load (MySQL)
 │   │       ├── 01_create_db.py
@@ -224,7 +224,7 @@ Station information  +  Station status  +  Weather
    pnpm dev
    ```
 
-> **Quick start on Windows**: run `backend/scripts/arrancar.bat` to open the three
+> **Quick start on Windows**: run `backend/pipelines/arrancar.bat` to open the three
 > services in separate terminals at once.
 >
 > **Note**: predictions are served by loading a pre-trained model from MLflow. The

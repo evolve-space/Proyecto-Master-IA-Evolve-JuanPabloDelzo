@@ -35,8 +35,8 @@ Bronze (fuentes)      ETL → MySQL            Gold (analítico)
 
 | Capa | Descripción | Ubicación / implementación |
 |---|---|---|
-| **Bronze** | Datos originales sin transformar: CSV mensuales del Ajuntament y respuesta JSON de Open-Meteo. | `data/informacion/`, `data/estado/`, `backend/scripts/etl/04_fetch_clima_bcn.py` |
-| **Silver** | Datos limpios, validados y modelados en MySQL con PKs, FKs y tipos correctos. | Base de datos `Bicing` (`backend/scripts/etl/01_create_db.py`, `backend/scripts/etl/02_insert_informacion.py`, `backend/scripts/etl/03_insert_estado.py`) |
+| **Bronze** | Datos originales sin transformar: CSV mensuales del Ajuntament y respuesta JSON de Open-Meteo. | `data/informacion/`, `data/estado/`, `backend/pipelines/etl/04_fetch_clima_bcn.py` |
+| **Silver** | Datos limpios, validados y modelados en MySQL con PKs, FKs y tipos correctos. | Base de datos `Bicing` (`backend/pipelines/etl/01_create_db.py`, `backend/pipelines/etl/02_insert_informacion.py`, `backend/pipelines/etl/03_insert_estado.py`) |
 | **Gold** | Resultados de predicción de bicicletas y anclajes mediante series temporales con deep learning, a partir de MySQL y el clima. | API REST que expone predicciones en JSON; consumida por el frontend React. |
 
 ---
@@ -76,7 +76,7 @@ Archivos CSV mensuales con el prefijo `*_BicingNou_ESTACIONS.csv`. Cada fila es 
 
 ### 2.3 Datos meteorológicos (Open-Meteo)
 
-El script `backend/scripts/etl/04_fetch_clima_bcn.py` consulta la API de Open-Meteo para Barcelona (lat=41.3851, lon=2.1734) en el rango 2021-01-01 a 2025-09-30.
+El script `backend/pipelines/etl/04_fetch_clima_bcn.py` consulta la API de Open-Meteo para Barcelona (lat=41.3851, lon=2.1734) en el rango 2021-01-01 a 2025-09-30.
 
 | Campo generado | Tipo | Descripción |
 |---|---|---|
@@ -95,7 +95,7 @@ El script `backend/scripts/etl/04_fetch_clima_bcn.py` consulta la API de Open-Me
 
 La base de datos `Bicing` constituye la capa Silver. Aquí los datos ya han sido limpiados, tipados, deduplicados y relacionados mediante claves primarias y foráneas. Los scripts `02_insert_informacion.py` y `03_insert_estado.py` realizan la carga desde Bronze hasta esta capa.
 
-La base de datos `Bicing` se crea con `backend/scripts/etl/01_create_db.py` con codificación `utf8mb4_unicode_ci`. Las credenciales se leen desde `.env` a través de `backend/core/db.py`.
+La base de datos `Bicing` se crea con `backend/pipelines/etl/01_create_db.py` con codificación `utf8mb4_unicode_ci`. Las credenciales se leen desde `.env` a través de `backend/core/db.py`.
 
 ### 3.1 Tabla `informacion`
 
@@ -155,9 +155,9 @@ CREATE TABLE IF NOT EXISTS estado (
 
 ## 4. Pipeline Bronze → Silver (scripts de carga)
 
-Los scripts de la carpeta `backend/scripts/etl/` leen los archivos CSV de la capa Bronze, aplican limpieza y normalización, e insertan el resultado en la capa Silver de MySQL. Cada uno importa la configuración de conexión desde `backend/core/db.py`.
+Los scripts de la carpeta `backend/pipelines/etl/` leen los archivos CSV de la capa Bronze, aplican limpieza y normalización, e insertan el resultado en la capa Silver de MySQL. Cada uno importa la configuración de conexión desde `backend/core/db.py`.
 
-### 4.1 `backend/scripts/etl/02_insert_informacion.py`
+### 4.1 `backend/pipelines/etl/02_insert_informacion.py`
 
 - Lectura con **Polars** probando codificaciones `utf8`, `windows-1252` y `utf8-lossy`.
 - Selección de columnas presentes en cada CSV.
@@ -168,7 +168,7 @@ Los scripts de la carpeta `backend/scripts/etl/` leen los archivos CSV de la cap
 - Deduplicación por `station_id` conservando el último registro.
 - Inserción por lotes de 10.000 con `ON DUPLICATE KEY UPDATE` para mantener la información más reciente.
 
-### 4.2 `backend/scripts/etl/03_insert_estado.py`
+### 4.2 `backend/pipelines/etl/03_insert_estado.py`
 
 - Lectura por lotes con `pl.scan_csv().collect_batches()` (`chunk_size=200_000`) para reducir uso de memoria.
 - Schema override a `Float64` en columnas numéricas y a `Utf8` para `status`, para evitar errores de parseo.
@@ -177,7 +177,7 @@ Los scripts de la carpeta `backend/scripts/etl/` leen los archivos CSV de la cap
 - Deduplicación dentro de cada lote por `(station_id, datetime)`.
 - Inserción por lotes de 5.000 filas con `INSERT IGNORE` para evitar bloqueos por duplicados.
 
-### 4.3 `backend/scripts/etl/04_fetch_clima_bcn.py`
+### 4.3 `backend/pipelines/etl/04_fetch_clima_bcn.py`
 
 - Consulta anual a `https://archive-api.open-meteo.com/v1/archive`.
 - Variables: `temperature_2m`, `relative_humidity_2m`, `rain`, `cloud_cover`, `wind_speed_10m`.
@@ -193,7 +193,7 @@ La capa Gold **no persiste resultados en tablas MySQL**, sino en el **Model Regi
 - `backend/core/features.py`: construye el dataset de features por estación (SQL + Python) y lo une con el clima.
 - `backend/core/model.py`: clase `LSTMbicis` que encapsula entrenamiento y predicción multi-horizonte.
 - `backend/core/mlflow_client.py`: búsqueda de runs, descarga de scalers y cache de modelos usado por la API.
-- `backend/scripts/train_all_stations.py`: orquestador que entrena y registra un modelo por estación en MLflow bajo el nombre `est_{station_id}`.
+- `backend/pipelines/train_all_stations.py`: orquestador que entrena y registra un modelo por estación en MLflow bajo el nombre `est_{station_id}`.
 
 Cada modelo registrado incluye, además del modelo Keras, los escaladores `scaler_x`, `scaler_y` y la lista `feature_cols` como artifacts, para que la API pueda replicar exactamente el preprocesamiento sin reentrenar.
 
@@ -215,7 +215,7 @@ La función `cargar_estado_station(station_id)` ejecuta una consulta SQL contra 
 La función `bicis(station_id)`:
 
 1. Llama a `cargar_estado_station` y castea `datetime`.
-2. Llama a `fetch_clima_barcelona()` (`backend/scripts/etl/04_fetch_clima_bcn.py`) para obtener el clima horario y el flag `is_holiday`.
+2. Llama a `fetch_clima_barcelona()` (`backend/pipelines/etl/04_fetch_clima_bcn.py`) para obtener el clima horario y el flag `is_holiday`.
 3. Hace `merge` entre el estado (a resolución de 5 min) y el clima (a resolución horaria) usando `date` + `hour`.
 4. Reindexa la serie a una frecuencia fija de 5 minutos (`asfreq` + forward-fill) para rellenar huecos temporales.
 5. Añade la columna booleana `is_imputed`, que marca `True` en las filas generadas por el relleno (frente a las filas originales reales).
@@ -243,7 +243,7 @@ modelo.entrenar_y_predecir()
 - **Entrenamiento**: split cronológico en **tres tramos disjuntos** train/val/test (80/10/10 por defecto, `val_frac`/`test_frac`), con `EarlyStopping` sobre `val_loss` monitorizado únicamente en el tramo de validación; el tramo de test nunca participa en el entrenamiento ni en la selección de pesos. *(Actualizado en `04_analisis_modelado.md`, sección 5: la versión inicial reutilizaba el tramo de test como `validation_data`, lo que introducía fuga de información en la métrica final; ver detalle y justificación de la corrección en esa entrega.)*
 - **Post-procesado**: las predicciones se recortan a `>= 0` (`np.maximum(fila, 0)`), ya que `nbm`/`nbe` no pueden ser negativos.
 
-### 5.3 `backend/scripts/train_all_stations.py` — orquestador MLflow
+### 5.3 `backend/pipelines/train_all_stations.py` — orquestador MLflow
 
 Entrena y registra un modelo por cada `station_id` encontrado en MySQL:
 
@@ -255,8 +255,8 @@ Entrena y registra un modelo por cada `station_id` encontrado en MySQL:
 Soporta dos modos:
 
 ```bash
-python backend/scripts/train_all_stations.py              # entrena solo estaciones sin modelo
-python backend/scripts/train_all_stations.py --reentrenar-todos  # fuerza reentrenamiento completo
+python backend/pipelines/train_all_stations.py              # entrena solo estaciones sin modelo
+python backend/pipelines/train_all_stations.py --reentrenar-todos  # fuerza reentrenamiento completo
 ```
 
 ### 5.4 API implementada
@@ -328,7 +328,7 @@ Silver (MySQL: estado + informacion) ──┐
 
 - `backend/core/features.py` consume `estado` e `informacion` (FK) de la capa Silver, y el clima de Open-Meteo.
 - `backend/core/model.py` consume el `DataFrame` de `backend/core/features.py` y entrena/predice.
-- `backend/scripts/train_all_stations.py` registra cada modelo entrenado en MLflow bajo `est_{station_id}` junto con sus escaladores.
+- `backend/pipelines/train_all_stations.py` registra cada modelo entrenado en MLflow bajo `est_{station_id}` junto con sus escaladores.
 - `backend/api/informacion_api.py` expone endpoints HTTP y delega en `backend/core/mlflow_client.py` y `backend/core/model.py` para cargar el modelo, escaladores y datos históricos desde MLflow/MySQL y servir predicciones sin reentrenar.
 - El frontend React consume los endpoints en `http://localhost:5002`.
 
@@ -390,6 +390,6 @@ async function getPrediction(stationId) {
 - **Batching:** las inserciones se hacen en lotes (10.000 para `informacion`, 5.000 para `estado`) para evitar problemas de memoria y `max_allowed_packet`.
 - **Idempotencia:** `informacion` usa `ON DUPLICATE KEY UPDATE`; `estado` usa `INSERT IGNORE` para evitar bloqueos por duplicados.
 - **Memoria:** el script `03_insert_estado.py` lee CSV en lotes con Polars (`scan_csv().collect_batches()`) para poder procesar los ~63 archivos sin cargarlos enteros en RAM.
-- **Clima:** `backend/scripts/etl/04_fetch_clima_bcn.py` devuelve un DataFrame con `date`, `hour`, `temperature_c`, `relative_humidity_2m`, `rain`, `cloud_cover`, `wind_speed_10m` e `is_holiday`. El módulo `backend/core/features.py` une este DataFrame con la tabla `estado` de MySQL a partir de `date` y `hour` para construir el dataset de entrenamiento de la capa Gold.
-- **Credenciales:** el acceso a MySQL ya no está hardcodeado en los scripts. `backend/core/db.py` centraliza la lectura de credenciales desde variables de entorno (cargadas con `python-dotenv` desde un archivo `.env` en la raíz, no versionado). Ver `.env.example` para la plantilla de variables (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`).
-- **Arquitectura de capas:** la capa `backend/api` solo expone endpoints HTTP y delega la lógica de MLflow, features y modelo en `backend/core`. Los scripts ETL (`backend/scripts`) usan `backend/core` como librería compartida; de esta forma se evita duplicar código entre entrenamiento e inferencia y se eliminan los `sys.path.insert` dispersos.
+- **Clima:** `backend/pipelines/etl/04_fetch_clima_bcn.py` devuelve un DataFrame con `date`, `hour`, `temperature_c`, `relative_humidity_2m`, `rain`, `cloud_cover`, `wind_speed_10m` e `is_holiday`. El módulo `backend/core/features.py` une este DataFrame con la tabla `estado` de MySQL a partir de `date` y `hour` para construir el dataset de entrenamiento de la capa Gold.
+- **Credenciales:** el acceso a MySQL ya no está hardcodeado en los pipelines. `backend/core/db.py` centraliza la lectura de credenciales desde variables de entorno (cargadas con `python-dotenv` desde un archivo `.env` en la raíz, no versionado). Ver `.env.example` para la plantilla de variables (`MYSQL_HOST`, `MYSQL_PORT`, `MYSQL_USER`, `MYSQL_PASSWORD`, `MYSQL_DATABASE`).
+- **Arquitectura de capas:** la capa `backend/api` solo expone endpoints HTTP y delega la lógica de MLflow, features y modelo en `backend/core`. Los pipelines ETL (`backend/pipelines`) usan `backend/core` como librería compartida; de esta forma se evita duplicar código entre entrenamiento e inferencia y se eliminan los `sys.path.insert` dispersos.

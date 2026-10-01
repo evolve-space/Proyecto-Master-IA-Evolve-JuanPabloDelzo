@@ -5,7 +5,7 @@ Para predecir la disponibilidad de bicicletas y anclajes en las estaciones, se r
 - [Información de las estaciones Bicing](https://opendata-ajuntament.barcelona.cat/data/es/dataset/informacio-estacions-bicing)
 - [Estado de las estaciones Bicing](https://opendata-ajuntament.barcelona.cat/data/es/dataset/estat-estacions-bicing)
 
-Además, se enriquece el dataset con datos meteorológicos históricos de Barcelona obtenidos de la API de **Open-Meteo** (`backend/scripts/etl/4.fetch_clima_bcn.py`).
+Además, se enriquece el dataset con datos meteorológicos históricos de Barcelona obtenidos de la API de **Open-Meteo** (`backend/pipelines/etl/4.fetch_clima_bcn.py`).
 
 Para preparar el dataset de modelado, se ha añadido el script `backend/core/features.py`, que carga el histórico de una estación desde MySQL (con lags y variables temporales cíclicas ya calculadas en SQL) y lo une con el DataFrame del clima.
 
@@ -105,7 +105,7 @@ Informacion_estaciones.csv          Estado estaciones (mensual)
 
 ## 3. 🌤️ Datos Meteorológicos — Open-Meteo
 
-Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bicing, se descargan datos horarios de Barcelona mediante la API de **Open-Meteo** (`backend/scripts/etl/4.fetch_clima_bcn.py`).
+Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bicing, se descargan datos horarios de Barcelona mediante la API de **Open-Meteo** (`backend/pipelines/etl/4.fetch_clima_bcn.py`).
 
 - **Coordenadas:** latitud `41.3851`, longitud `2.1734` (Barcelona)
 - **Período:** `2021-01-01` a `2025-09-30`
@@ -130,7 +130,7 @@ Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bic
 
 - Lee la tabla `estado` de MySQL filtrando por `station_id`, calculando en SQL los lags (`lag_nbm`, `lag_nbe`) y las variables temporales cíclicas (`hour_sin/cos`, `dow_sin/cos`, `year_sin/cos`).
 - Genera las columnas `date` y `hour` a partir de `datetime`.
-- Llama a `fetch_clima_barcelona()` desde `backend/scripts/etl/4.fetch_clima_bcn.py`.
+- Llama a `fetch_clima_barcelona()` desde `backend/pipelines/etl/4.fetch_clima_bcn.py`.
 - Realiza un `merge` por `date` y `hour` entre el histórico y el clima, y reindexa a una frecuencia fija de 5 minutos (marcando las filas imputadas en `is_imputed`).
 
 ---
@@ -144,9 +144,9 @@ Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bic
 | Ver el **historial** de disponibilidad | `data/estado/` (mensual) |
 | Entrenar un modelo de **predicción** | `data/estado/` + clima |
 | Filtrar por **tipo de bici** (mecánica / eléctrica) | `data/estado/` |
-| Incorporar el impacto del **clima** | API Open-Meteo → `backend/scripts/etl/4.fetch_clima_bcn.py` |
+| Incorporar el impacto del **clima** | API Open-Meteo → `backend/pipelines/etl/4.fetch_clima_bcn.py` |
 | Unir histórico y clima por estación | `backend/core/features.py` |
-| Entrenar y versionar modelos por estación | `backend/scripts/train_all_stations.py` + MLflow |
+| Entrenar y versionar modelos por estación | `backend/pipelines/train_all_stations.py` + MLflow |
 
 ---
 
