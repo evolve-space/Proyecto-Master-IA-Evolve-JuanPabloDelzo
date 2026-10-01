@@ -230,7 +230,7 @@ errores_entrenamiento.csv
 **/test_load_model.py
 
 # Instrucciones
-arrancar.txt
+**/arrancar.txt
 
 # Presentación del Power Point
 Presentacion
