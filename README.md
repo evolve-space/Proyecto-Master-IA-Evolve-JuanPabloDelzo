@@ -105,7 +105,7 @@ data/
 
 ### 🌤️ Weather data — Open-Meteo
 
-Hourly Barcelona data obtained from the **Open-Meteo** API (`backend/scripts/silver/04_fetch_clima_bcn.py`).
+Hourly Barcelona data obtained from the **Open-Meteo** API (`backend/scripts/etl/04_fetch_clima_bcn.py`).
 
 - **Coordinates:** `41.3851`, `2.1734` (Barcelona)
 - **Period:** `2021-01-01` to `2025-09-30`
@@ -183,7 +183,7 @@ Station information  +  Station status  +  Weather
 │   │
 │   ├── 📂 scripts/                      ← Training and ETL scripts
 │   │   ├── train_all_stations.py      ← Trains one model per station and registers it in MLflow
-│   │   └── silver/                    ← Bronze → Silver load (MySQL)
+│   │   └── etl/                       ← Bronze → Silver load (MySQL)
 │   │       ├── 01_create_db.py
 │   │       ├── 02_insert_informacion.py
 │   │       ├── 03_insert_estado.py
