@@ -1,5 +1,4 @@
-"""
-Orquestador MLflow: entrena y registra un modelo LSTM por cada estación
+"""Orquestador MLflow: entrena y registra un modelo LSTM por cada estación
 de Bicing disponible en la tabla `informacion`.
 
 Cada modelo queda registrado en MLflow con el nombre "est_{station_id}"
@@ -11,11 +10,10 @@ Uso:
 Requisitos:
     - Servidor MLflow en ejecución (por defecto http://localhost:5000).
       Inícialo con:  mlflow server --host 0.0.0.0 --port 5000
-    - Variables de entorno de MySQL configuradas en .env (ver db_config.py).
+    - Variables de entorno de MySQL configuradas en .env (ver backend/core/db.py).
     - Dependencias: mlflow, tensorflow, scikit-learn, pandas, sqlalchemy, etc.
 """
 
-#import os
 import argparse
 import csv
 import gc
@@ -32,16 +30,12 @@ import pandas as pd
 from sqlalchemy import create_engine
 from tensorflow.keras import backend as keras_backend
 
-# Añadir al path la carpeta scripts para importar lstm_model y silver
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-sys.path.insert(0, str(Path(__file__).resolve().parent / "silver"))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from lstm_model import LSTMbicis, LOOKBACK, HORIZONTES_MIN, STEP_MINUTES, TARGET_COLS
-from db_config import get_sqlalchemy_url
-
-# Configuración de MLflow
-MLFLOW_TRACKING_URI = "http://localhost:5000"
-MLFLOW_EXPERIMENT_NAME = "bicing_lstm_predictions"
+from core.config import MLFLOW_EXPERIMENT_NAME, MLFLOW_TRACKING_URI
+from core.db import get_sqlalchemy_url
+from core.model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
+import mlflow
 
 
 def obtener_station_ids():
@@ -83,9 +77,6 @@ def entrenar_y_registrar(station_id: int):
 
         # Loguear métricas de test
         loss, mae = modelo.model.evaluate(
-            # Re-evaluar sobre el último bloque para obtener las métricas.
-            # Como entrenar_y_predecir() ya evaluó, usamos las métricas
-            # del propio modelo sobre la última ventana completa.
             *_obtener_test_data(modelo),
             verbose=0,
         )

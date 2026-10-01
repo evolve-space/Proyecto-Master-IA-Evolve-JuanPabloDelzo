@@ -1,5 +1,4 @@
-"""
-API REST (Flask) que expone las predicciones de disponibilidad de bicis
+"""API REST (Flask) que expone las predicciones de disponibilidad de bicis
 (mecánicas y eléctricas) a 5 y 10 minutos para una estación Bicing dada.
 
 Endpoint disponible:
@@ -21,58 +20,28 @@ nombre "est_{station_id}" junto con sus escaladores. No reentrena el modelo,
 por lo que la respuesta es casi inmediata.
 """
 
-import pickle
 import sys
 import traceback
 from pathlib import Path
 
-import mlflow
-import mlflow.tensorflow
 import numpy as np
 import pandas as pd
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-# Añadimos al path la carpeta que contiene lstm_model.py (backend/scripts).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from lstm_model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-MLFLOW_TRACKING_URI = "http://localhost:5000"
-MLFLOW_EXPERIMENT_NAME = "bicing_lstm_predictions"
+import mlflow
+from core.config import MLFLOW_EXPERIMENT_NAME
+from core.features import bicis
+from core.mlflow_client import load_model_and_scalers, setup_mlflow
+from core.model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
 
 app = Flask(__name__)
 CORS(app)  # Permite llamadas desde el frontend React
 
 # Configurar MLflow una sola vez al iniciar la API.
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
-
-
-def _cargar_run_reciente(station_id: int):
-    """Busca el run de MLflow más reciente para la estación dada."""
-    experiment = mlflow.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
-    if experiment is None:
-        return None
-
-    runs = mlflow.search_runs(
-        experiment_ids=[experiment.experiment_id],
-        filter_string=f"tags.`mlflow.runName` = 'est_{station_id}'",
-        order_by=["start_time DESC"],
-        max_results=1,
-    )
-    if runs.empty:
-        return None
-    return runs.iloc[0].run_id
-
-
-def _cargar_scaler(run_id: str, nombre: str):
-    """Descarga y deserializa un scaler guardado como artifact de MLflow."""
-    artifact_path = f"scalers/{nombre}.pkl"
-    local_path = mlflow.artifacts.download_artifacts(
-        run_id=run_id, artifact_path=artifact_path
-    )
-    with open(local_path, "rb") as f:
-        return pickle.load(f)
+setup_mlflow()
 
 
 @app.route("/api/predict", methods=["POST"])
@@ -90,20 +59,31 @@ def predict():
         return jsonify({"error": "station_id debe ser un número entero"}), 400
 
     try:
-        run_id = _cargar_run_reciente(station_id)
-        if run_id is None:
+        experiment = mlflow.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
+        if experiment is None:
+            return jsonify({"error": "Experimento de MLflow no encontrado"}), 404
+
+        runs = mlflow.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string=f"tags.`mlflow.runName` = 'est_{station_id}'",
+            order_by=["start_time DESC"],
+            max_results=1,
+        )
+        if runs.empty:
             return jsonify(
                 {"error": f"No se encontró modelo entrenado para la estación {station_id}"}
             ), 404
 
+        run_id = runs.iloc[0].run_id
+
         # Cargar modelo y escaladores desde MLflow.
-        model = mlflow.tensorflow.load_model(f"runs:/{run_id}/model")
-        scaler_x = _cargar_scaler(run_id, "scaler_x")
-        scaler_y = _cargar_scaler(run_id, "scaler_y")
-        feature_cols = _cargar_scaler(run_id, "feature_cols")
+        cached = load_model_and_scalers(station_id, run_id)
+        model = cached["model"]
+        scaler_x = cached["scaler_x"]
+        scaler_y = cached["scaler_y"]
+        feature_cols = cached["feature_cols"]
 
         # Obtener datos históricos de la estación.
-        bicis = LSTMbicis._import_bicis()
         df = bicis(station_id)
 
         # Preparar features con la misma lógica usada en entrenamiento.

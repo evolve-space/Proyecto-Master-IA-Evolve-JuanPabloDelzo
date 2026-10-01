@@ -58,7 +58,7 @@ This project solves exactly that:
 
 ## 📦 Project data
 
-The data comes from [Open Data Ajuntament de Barcelona](https://opendata-ajuntament.barcelona.cat) and the **Open-Meteo** API, and is split into three types:
+The data comes from [Open Data Ajuntament de Barcelona](https://opendata-ajuntament.barcelona.cat) and the **Open-Meteo** API, and is split into three layers:
 
 ### 🕐 Time history — Station status
 
@@ -105,7 +105,7 @@ data/
 
 ### 🌤️ Weather data — Open-Meteo
 
-Hourly Barcelona data obtained from the **Open-Meteo** API (`backend/scripts/silver/4.fetch_clima_bcn.py`).
+Hourly Barcelona data obtained from the **Open-Meteo** API (`backend/scripts/silver/04_fetch_clima_bcn.py`).
 
 - **Coordinates:** `41.3851`, `2.1734` (Barcelona)
 - **Period:** `2021-01-01` to `2025-09-30`
@@ -170,25 +170,28 @@ Station information  +  Station status  +  Weather
 │       └── 📂 assets/
 │
 ├── 📂 backend/                          ← Backend services
-│   ├── 📂 api/                          ← REST APIs
+│   ├── 📂 api/                          ← REST APIs (delivery layer)
 │   │   ├── informacion_api.py         ← Stations + predictions (port 5002)
 │   │   └── bicis_pred_api.py          ← Standalone predictions API (port 5001)
 │   │
-│   ├── 📂 scripts/                    ← Training and feature scripts
-│   │   ├── lstm_model.py              ← LSTMbicis class: trains and predicts
+│   ├── 📂 core/                         ← Shared business logic used by API and scripts
+│   │   ├── db.py                      ← MySQL credentials and connection helpers
+│   │   ├── config.py                  ← Environment constants (MLflow, DB)
+│   │   ├── features.py                ← Feature engineering per station (ex bikes.py)
+│   │   ├── model.py                   ← LSTMbicis class: trains and predicts
+│   │   └── mlflow_client.py           ← MLflow run lookup and cached model loading
+│   │
+│   ├── 📂 scripts/                      ← Training and ETL scripts
 │   │   ├── train_all_stations.py      ← Trains one model per station and registers it in MLflow
-│   │   ├── gold/
-│   │   │   └── bikes.py               ← Feature engineering per station
 │   │   └── silver/                    ← Bronze → Silver load (MySQL)
 │   │       ├── 01_create_db.py
 │   │       ├── 02_insert_informacion.py
 │   │       ├── 03_insert_estado.py
-│   │       ├── 04_fetch_clima_bcn.py
-│   │       └── db_config.py           ← MySQL credentials via .env
+│   │       └── 04_fetch_clima_bcn.py
 │   │
 │   └── 📂 back_testing/
 │
-└── 📄 arrancar.txt                      ← Commands to start MLflow against the correct SQLite database
+└── 📄 .env.example                      ← Environment variables template
 ```
 
 > **MLflow database**: the project uses `C:\Users\juand\mlflow.db` as the tracking

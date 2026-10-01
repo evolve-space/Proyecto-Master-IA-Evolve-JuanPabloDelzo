@@ -7,7 +7,7 @@ Para predecir la disponibilidad de bicicletas y anclajes en las estaciones, se r
 
 Además, se enriquece el dataset con datos meteorológicos históricos de Barcelona obtenidos de la API de **Open-Meteo** (`backend/scripts/silver/4.fetch_clima_bcn.py`).
 
-Para preparar el dataset de modelado, se ha añadido el script `backend/scripts/gold/bikes.py`, que carga el histórico de una estación desde MySQL (con lags y variables temporales cíclicas ya calculadas en SQL) y lo une con el DataFrame del clima.
+Para preparar el dataset de modelado, se ha añadido el script `backend/core/features.py`, que carga el histórico de una estación desde MySQL (con lags y variables temporales cíclicas ya calculadas en SQL) y lo une con el DataFrame del clima.
 
 ---
 
@@ -126,7 +126,7 @@ Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bic
 | `wind_speed_10m` | Velocidad del viento a 10 metros (km/h) |
 
 
-**Script de unión con datos históricos:** `backend/scripts/gold/bikes.py`
+**Script de unión con datos históricos:** `backend/core/features.py`
 
 - Lee la tabla `estado` de MySQL filtrando por `station_id`, calculando en SQL los lags (`lag_nbm`, `lag_nbe`) y las variables temporales cíclicas (`hour_sin/cos`, `dow_sin/cos`, `year_sin/cos`).
 - Genera las columnas `date` y `hour` a partir de `datetime`.
@@ -145,7 +145,7 @@ Para enriquecer el modelo y analizar la relación entre el clima y el uso de Bic
 | Entrenar un modelo de **predicción** | `data/estado/` + clima |
 | Filtrar por **tipo de bici** (mecánica / eléctrica) | `data/estado/` |
 | Incorporar el impacto del **clima** | API Open-Meteo → `backend/scripts/silver/4.fetch_clima_bcn.py` |
-| Unir histórico y clima por estación | `backend/scripts/gold/bikes.py` |
+| Unir histórico y clima por estación | `backend/core/features.py` |
 | Entrenar y versionar modelos por estación | `backend/scripts/train_all_stations.py` + MLflow |
 
 ---

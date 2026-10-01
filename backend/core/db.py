@@ -1,5 +1,4 @@
-"""
-Configuración centralizada de credenciales de acceso a MySQL.
+"""Configuración y helpers de acceso a MySQL.
 
 Las credenciales se leen desde variables de entorno (opcionalmente cargadas
 desde un archivo `.env` en la raíz del proyecto) para evitar exponerlas
@@ -9,19 +8,7 @@ Crea un archivo `.env` en la raíz del proyecto (mismo nivel que
 `requirements.txt`) a partir de `.env.example` con tus propias credenciales.
 """
 
-import os
-from pathlib import Path
-
-from dotenv import load_dotenv
-
-_PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent.parent
-load_dotenv(_PROJECT_ROOT / ".env")
-
-DB_HOST = os.getenv("MYSQL_HOST")
-DB_PORT = int(os.getenv("MYSQL_PORT"))
-DB_USER = os.getenv("MYSQL_USER")
-DB_PASSWORD = os.getenv("MYSQL_PASSWORD")
-DB_NAME = os.getenv("MYSQL_DATABASE")
+from .config import DB_HOST, DB_NAME, DB_PASSWORD, DB_PORT, DB_USER
 
 
 def get_connection_params(database: str | None = None) -> dict:
@@ -55,7 +42,7 @@ def get_connection_params(database: str | None = None) -> dict:
 
 
 def get_sqlalchemy_url(database: str = DB_NAME) -> str:
-    """Construye la URL de conexión para SQLAlchemy (usada en backend/scripts/gold/bikes.py)."""
+    """Construye la URL de conexión para SQLAlchemy."""
     if not DB_PASSWORD:
         raise RuntimeError(
             "La variable de entorno MYSQL_PASSWORD no está definida. "

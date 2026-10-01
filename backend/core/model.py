@@ -9,7 +9,7 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Input, LSTM, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping
 
-# Pasos de 5 minutos entre cada fila (frecuencia fijada por bicis() en bikes.py).
+# Pasos de 5 minutos entre cada fila (frecuencia fijada por bicis()).
 STEP_MINUTES = 5
 # Horizontes de predicción solicitados: 5 y 10 minutos vista.
 HORIZONTES_MIN = (5, 10)
@@ -60,11 +60,11 @@ class LSTMbicis:
 
     @staticmethod
     def _import_bicis():
-        """Importa dinámicamente la función `bicis` desde backend/scripts/gold/bikes.py."""
-        module_path = Path(__file__).resolve().parent / "gold" / "bikes.py"
-        spec = importlib.util.spec_from_file_location("bikes", module_path)
+        """Importa dinámicamente la función `bicis` desde backend/core/features.py."""
+        module_path = Path(__file__).resolve().parent / "features.py"
+        spec = importlib.util.spec_from_file_location("features", module_path)
         module = importlib.util.module_from_spec(spec)
-        sys.modules["bikes"] = module
+        sys.modules["features"] = module
         spec.loader.exec_module(module)
         return module.bicis
 

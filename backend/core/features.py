@@ -1,3 +1,11 @@
+"""Feature engineering: carga del histórico de estaciones, unión con clima y
+reconstrucción de la serie a frecuencia fija.
+
+Este módulo contiene la lógica que antes vivía en
+`backend/scripts/gold/bikes.py`. Lo hemos movido a `backend/core` porque es
+usado tanto por el entrenamiento como por la API de predicción.
+"""
+
 import importlib.util
 import sys
 from pathlib import Path
@@ -5,19 +13,13 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "silver"))
-from db_config import get_sqlalchemy_url
+from .db import get_sqlalchemy_url
 
 
 def _import_fetch_clima_bcn():
-    """
-    Importa la función fetch_clima_barcelona desde el script silver/04_fetch_clima_bcn.py.
-    
-    Returns:
-        Función fetch_clima_barcelona
-    """
+    """Importa la función fetch_clima_barcelona desde el script silver/04_fetch_clima_bcn.py."""
     module_path = (
-        Path(__file__).resolve().parent.parent / "silver" / "04_fetch_clima_bcn.py"
+        Path(__file__).resolve().parent.parent / "scripts" / "silver" / "04_fetch_clima_bcn.py"
     )
     spec = importlib.util.spec_from_file_location("fetch_clima_bcn", module_path)
     module = importlib.util.module_from_spec(spec)
@@ -37,13 +39,13 @@ def cargar_estado_station(station_id: int, since: str = "2021-01-01"):
     Carga el estado de una estación desde la base de datos.
 
     Args:
-        station_id: ID de la estación a consultar
+        station_id: ID de la estación a consultar.
         since: fecha mínima (inclusive) en formato 'YYYY-MM-DD' desde la
             que cargar el histórico. Por defecto carga todo desde 2021;
             para inferencia en tiempo real basta con los últimos días.
 
     Returns:
-        DataFrame con el estado de la estación
+        DataFrame con el estado de la estación.
     """
     query = """
           WITH aux_table AS (
@@ -84,9 +86,6 @@ def cargar_estado_station(station_id: int, since: str = "2021-01-01"):
         df = pd.read_sql(query, conn, params=(station_id, since))
     return df
 
-###################################
-#######  FUNCIÓN PRINCIPAL ########
-###################################
 
 def bicis(station_id: int, since: str = "2021-01-01"):
     """
@@ -94,65 +93,52 @@ def bicis(station_id: int, since: str = "2021-01-01"):
     luego une ambos datasets por fecha y hora.
 
     Args:
-        station_id: ID de la estación a consultar
+        station_id: ID de la estación a consultar.
         since: fecha mínima (inclusive) en formato 'YYYY-MM-DD' desde la
             que cargar el histórico de la estación. El clima se cachea en
             memoria tras la primera descarga.
 
     Returns:
-        DataFrame con el estado de la estación y el clima
+        DataFrame con el estado de la estación y el clima, indexado por datetime.
     """
     global _CLIMA_CACHE
 
-    #1.Estado de las estación
+    # 1. Estado de la estación.
     df_estado = cargar_estado_station(station_id, since=since)
     df_estado = df_estado.assign(
         datetime=pd.to_datetime(df_estado.datetime),
-        date=df_estado.datetime.dt.strftime("%Y-%m-%d")
+        date=df_estado.datetime.dt.strftime("%Y-%m-%d"),
     )
 
-    #2.Clima y festivos (cacheado: el rango histórico es fijo)
+    # 2. Clima y festivos (cacheado: el rango histórico es fijo).
     if _CLIMA_CACHE is None:
         fetch_clima_barcelona = _import_fetch_clima_bcn()
         _CLIMA_CACHE = fetch_clima_barcelona()
     df_clima = _CLIMA_CACHE
-    
-    #3.Unión de los dos datasets
+
+    # 3. Unión de los dos datasets.
     df_merged = pd.merge(
         df_estado,
         df_clima,
         on=["date", "hour"],
         how="left",
     )
-    # Fijando datetime como índice con la opción inplace=True
     df_merged.set_index("datetime", inplace=True)
-    # Eliminando las columnas no útiles para el análisis
-    df_merged = df_merged.drop(columns=["date","hour"])
+    df_merged = df_merged.drop(columns=["date", "hour"])
 
-    #Quiero almacenar el índice original para marcar las filas imputadas
+    # 4. Reindexar a frecuencia fija de 5 minutos y marcar filas imputadas.
     original_index = df_merged.index
-
-    # Reindexar a una frecuencia fija de 5 minutos, rellenando los huecos
-    # (y los registros ya insertados por rellenar_huecos_tiempo) con el
-    # último valor conocido (forward fill), de forma que las filas queden
-    # equidistantes en el tiempo.
-    df_merged_filled = df_merged.asfreq('5min', method='ffill')
-    # Marcar las filas que han sido generadas por asfreq/ffill (True) frente a
-    # las filas originales reales (False) a través  de un atributo booleano
+    df_merged_filled = df_merged.asfreq("5min", method="ffill")
     df_merged_filled["is_imputed"] = ~df_merged_filled.index.isin(original_index)
-    
+
     return df_merged_filled
 
-###################################
-#####  EJECUCIÓN MANUAL ###########
-###################################
+
 if __name__ == "__main__":
-    id_est=44
+    id_est = 44
     df = bicis(id_est)
     print(f"\nEstación {id_est}:")
     print(df.tail(10))
     print("\nValores nulos:")
     print(df.isnull().sum())
     print(f"Total filas: {len(df)}")
-
-    

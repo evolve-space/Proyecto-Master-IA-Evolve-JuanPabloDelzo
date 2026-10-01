@@ -5,7 +5,8 @@ import polars as pl
 import mysql.connector
 from mysql.connector import Error
 
-from db_config import get_connection_params
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
+from core.db import get_connection_params
 
 INFORMACION_DIR = Path(__file__).resolve().parent.parent.parent / "data" / "informacion"
 files = sorted(INFORMACION_DIR.glob("*.csv"))

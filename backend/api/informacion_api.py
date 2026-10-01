@@ -1,5 +1,4 @@
-"""
-API REST (Flask) que expone la información de las estaciones Bicing y las
+"""API REST (Flask) que expone la información de las estaciones Bicing y las
 predicciones de disponibilidad de bicis (mecánicas y eléctricas) a 5 y
 10 minutos para una estación dada.
 
@@ -12,48 +11,35 @@ Endpoints disponibles:
         Respuesta: { "station_id": ..., "last_timestamp": ..., "predictions": [...] }
 
 Las credenciales de acceso a MySQL se leen desde el archivo `.env` en la
-raíz del proyecto, a través de `backend/scripts/silver/db_config.py`.
+raíz del proyecto, a través de `backend/core/db.py`.
 """
 
-import pickle
-import sys
 import traceback
 from pathlib import Path
 
-import mlflow
-import mlflow.tensorflow
 import mysql.connector
 import numpy as np
 import pandas as pd
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts" / "silver"))
-from db_config import DB_NAME, get_connection_params
+import sys
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Añadimos al path la carpeta que contiene lstm_model.py (backend/scripts).
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from lstm_model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
-
-MLFLOW_TRACKING_URI = "http://localhost:5000"
-MLFLOW_EXPERIMENT_NAME = "bicing_lstm_predictions"
+from core.config import MLFLOW_EXPERIMENT_NAME, MLFLOW_TRACKING_URI
+from core.db import DB_NAME, get_connection_params
+from core.features import bicis
+from core.mlflow_client import load_model_and_scalers, setup_mlflow
+from core.model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
+import mlflow
 
 app = Flask(__name__)
 CORS(app)  # Permite que el frontend (React, otro origen) consuma esta API
 
 COLUMNS = ["station_id", "latitud", "longitud", "address", "post_code", "capacity"]
 
-# Cache LRU en memoria para modelos/scalers ya cargados. Cada estación repite
-# los mismos artifacts de MLflow, por lo que cachearlos evita descargar el
-# modelo Keras en cada petición de predicción.
-from collections import OrderedDict
-
-MAX_CACHED_MODELS = 20
-_model_cache: OrderedDict[int, dict] = OrderedDict()
-
 # Configurar MLflow una sola vez al iniciar la API.
-mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
-mlflow.set_experiment(MLFLOW_EXPERIMENT_NAME)
+setup_mlflow()
 
 
 def _obtener_estaciones_con_modelo():
@@ -96,60 +82,6 @@ def obtener_informacion():
     return jsonify(estaciones)
 
 
-def _cargar_run_reciente(station_id: int):
-    """Busca el run de MLflow más reciente para la estación dada."""
-    experiment = mlflow.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
-    if experiment is None:
-        return None
-
-    runs = mlflow.search_runs(
-        experiment_ids=[experiment.experiment_id],
-        filter_string=f"tags.`mlflow.runName` = 'est_{station_id}'",
-        order_by=["start_time DESC"],
-        max_results=1,
-    )
-    if runs.empty:
-        return None
-    return runs.iloc[0].run_id
-
-
-def _cargar_scaler(run_id: str, nombre: str):
-    """Descarga y deserializa un scaler guardado como artifact de MLflow."""
-    artifact_path = f"scalers/{nombre}.pkl"
-    local_path = mlflow.artifacts.download_artifacts(
-        run_id=run_id, artifact_path=artifact_path
-    )
-    with open(local_path, "rb") as f:
-        return pickle.load(f)
-
-
-def _cargar_modelo_cache(station_id: int, run_id: str):
-    """Devuelve modelo/scalers/feature_cols, cacheando en memoria por estación."""
-    global _model_cache
-    if station_id in _model_cache:
-        # Mover al final para mantener política LRU.
-        entry = _model_cache.pop(station_id)
-        _model_cache[station_id] = entry
-        return entry
-
-    model = mlflow.tensorflow.load_model(f"runs:/{run_id}/model")
-    scaler_x = _cargar_scaler(run_id, "scaler_x")
-    scaler_y = _cargar_scaler(run_id, "scaler_y")
-    feature_cols = _cargar_scaler(run_id, "feature_cols")
-
-    entry = {
-        "model": model,
-        "scaler_x": scaler_x,
-        "scaler_y": scaler_y,
-        "feature_cols": feature_cols,
-    }
-
-    if len(_model_cache) >= MAX_CACHED_MODELS:
-        _model_cache.popitem(last=False)
-    _model_cache[station_id] = entry
-    return entry
-
-
 @app.route("/api/predict", methods=["POST"])
 def predict():
     """Recibe station_id y devuelve las predicciones de nbm y nbe a 5 y 10 min."""
@@ -165,14 +97,25 @@ def predict():
         return jsonify({"error": "station_id debe ser un número entero"}), 400
 
     try:
-        run_id = _cargar_run_reciente(station_id)
-        if run_id is None:
+        experiment = mlflow.get_experiment_by_name(MLFLOW_EXPERIMENT_NAME)
+        if experiment is None:
+            return jsonify({"error": "Experimento de MLflow no encontrado"}), 404
+
+        runs = mlflow.search_runs(
+            experiment_ids=[experiment.experiment_id],
+            filter_string=f"tags.`mlflow.runName` = 'est_{station_id}'",
+            order_by=["start_time DESC"],
+            max_results=1,
+        )
+        if runs.empty:
             return jsonify(
                 {"error": f"No se encontró modelo entrenado para la estación {station_id}"}
             ), 404
 
+        run_id = runs.iloc[0].run_id
+
         # Cargar modelo y escaladores desde MLflow (con cache en memoria).
-        cached = _cargar_modelo_cache(station_id, run_id)
+        cached = load_model_and_scalers(station_id, run_id)
         model = cached["model"]
         scaler_x = cached["scaler_x"]
         scaler_y = cached["scaler_y"]
@@ -200,7 +143,6 @@ def predict():
                 {"error": f"La estación {station_id} no tiene datos históricos"}
             ), 404
 
-        bicis = LSTMbicis._import_bicis()
         desde = (pd.Timestamp(ultimo_dt) - pd.Timedelta(days=3)).strftime("%Y-%m-%d")
         df = bicis(station_id, since=desde)
 
@@ -250,4 +192,6 @@ def predict():
 if __name__ == "__main__":
     # debug=False evita el recargador de Flask, que en Windows puede detectar
     # cambios en archivos del sistema y reiniciar el proceso constantemente.
+    # threaded=True permite atender peticiones concurrentes, evitando que una
+    # predicción lenta bloquee las siguientes.
     app.run(host="0.0.0.0", port=5002, debug=False, threaded=True)
