@@ -234,3 +234,6 @@ errores_entrenamiento.csv
 
 # Presentación del Power Point
 Presentacion
+
+# Archivos de MLflow
+backend/pipelines/ml/mlflow.db

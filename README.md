@@ -182,8 +182,10 @@ Station information  +  Station status  +  Weather
 │   │   └── mlflow_client.py           ← MLflow run lookup and cached model loading
 │   │
 │   ├── 📂 pipelines/                    ← Training and ETL pipelines
-│   │   ├── train_all_stations.py      ← Trains one model per station and registers it in MLflow
-│   │   └── etl/                       ← Bronze → Silver load (MySQL)
+│   │   ├── ml/                         ← ML training and MLflow utilities
+│   │   │   ├── train_all_stations.py  ← Trains one model per station and registers it in MLflow
+│   │   │   └── reset_mlflow.py        ← Resets experiments and registered station models
+│   │   └── etl/                        ← Bronze → Silver load (MySQL)
 │   │       ├── 01_create_db.py
 │   │       ├── 02_insert_informacion.py
 │   │       ├── 03_insert_estado.py

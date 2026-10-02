@@ -4,8 +4,8 @@ de Bicing disponible en la tabla `informacion`.
 Cada modelo queda registrado en MLflow con el nombre "est_{station_id}"
 (p.ej. "est_1", "est_42", "est_510").
 
-Uso:
-    python train_all_stations.py
+Uso (desde la raíz del proyecto):
+    python backend/pipelines/ml/train_all_stations.py
 
 Requisitos:
     - Servidor MLflow en ejecución (por defecto http://localhost:5000).
@@ -30,12 +30,11 @@ import pandas as pd
 from sqlalchemy import create_engine
 from tensorflow.keras import backend as keras_backend
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from core.config import MLFLOW_EXPERIMENT_NAME, MLFLOW_TRACKING_URI
 from core.db import get_sqlalchemy_url
 from core.model import HORIZONTES_MIN, LOOKBACK, LSTMbicis, STEP_MINUTES, TARGET_COLS
-import mlflow
 
 
 def obtener_station_ids():

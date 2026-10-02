@@ -193,7 +193,7 @@ La capa Gold **no persiste resultados en tablas MySQL**, sino en el **Model Regi
 - `backend/core/features.py`: construye el dataset de features por estación (SQL + Python) y lo une con el clima.
 - `backend/core/model.py`: clase `LSTMbicis` que encapsula entrenamiento y predicción multi-horizonte.
 - `backend/core/mlflow_client.py`: búsqueda de runs, descarga de scalers y cache de modelos usado por la API.
-- `backend/pipelines/train_all_stations.py`: orquestador que entrena y registra un modelo por estación en MLflow bajo el nombre `est_{station_id}`.
+- `backend/pipelines/ml/train_all_stations.py`: orquestador que entrena y registra un modelo por estación en MLflow bajo el nombre `est_{station_id}`.
 
 Cada modelo registrado incluye, además del modelo Keras, los escaladores `scaler_x`, `scaler_y` y la lista `feature_cols` como artifacts, para que la API pueda replicar exactamente el preprocesamiento sin reentrenar.
 
@@ -243,7 +243,7 @@ modelo.entrenar_y_predecir()
 - **Entrenamiento**: split cronológico en **tres tramos disjuntos** train/val/test (80/10/10 por defecto, `val_frac`/`test_frac`), con `EarlyStopping` sobre `val_loss` monitorizado únicamente en el tramo de validación; el tramo de test nunca participa en el entrenamiento ni en la selección de pesos. *(Actualizado en `04_analisis_modelado.md`, sección 5: la versión inicial reutilizaba el tramo de test como `validation_data`, lo que introducía fuga de información en la métrica final; ver detalle y justificación de la corrección en esa entrega.)*
 - **Post-procesado**: las predicciones se recortan a `>= 0` (`np.maximum(fila, 0)`), ya que `nbm`/`nbe` no pueden ser negativos.
 
-### 5.3 `backend/pipelines/train_all_stations.py` — orquestador MLflow
+### 5.3 `backend/pipelines/ml/train_all_stations.py` — orquestador MLflow
 
 Entrena y registra un modelo por cada `station_id` encontrado en MySQL:
 
@@ -255,8 +255,8 @@ Entrena y registra un modelo por cada `station_id` encontrado en MySQL:
 Soporta dos modos:
 
 ```bash
-python backend/pipelines/train_all_stations.py              # entrena solo estaciones sin modelo
-python backend/pipelines/train_all_stations.py --reentrenar-todos  # fuerza reentrenamiento completo
+python backend/pipelines/ml/train_all_stations.py              # entrena solo estaciones sin modelo
+python backend/pipelines/ml/train_all_stations.py --reentrenar-todos  # fuerza reentrenamiento completo
 ```
 
 ### 5.4 API implementada
@@ -328,7 +328,7 @@ Silver (MySQL: estado + informacion) ──┐
 
 - `backend/core/features.py` consume `estado` e `informacion` (FK) de la capa Silver, y el clima de Open-Meteo.
 - `backend/core/model.py` consume el `DataFrame` de `backend/core/features.py` y entrena/predice.
-- `backend/pipelines/train_all_stations.py` registra cada modelo entrenado en MLflow bajo `est_{station_id}` junto con sus escaladores.
+- `backend/pipelines/ml/train_all_stations.py` registra cada modelo entrenado en MLflow bajo `est_{station_id}` junto con sus escaladores.
 - `backend/api/informacion_api.py` expone endpoints HTTP y delega en `backend/core/mlflow_client.py` y `backend/core/model.py` para cargar el modelo, escaladores y datos históricos desde MLflow/MySQL y servir predicciones sin reentrenar.
 - El frontend React consume los endpoints en `http://localhost:5002`.
 
