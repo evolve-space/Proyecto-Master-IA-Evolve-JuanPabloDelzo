@@ -237,3 +237,6 @@ Presentacion
 
 # Archivos de MLflow
 backend/pipelines/ml/mlflow.db
+
+# Anuncio
+**/ANUNCIO_LINKEDIN.md

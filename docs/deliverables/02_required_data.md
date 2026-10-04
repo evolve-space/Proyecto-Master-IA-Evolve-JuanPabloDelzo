@@ -1,0 +1,151 @@
+# 📦 Required Data for the Project
+
+To predict the availability of bicycles and docks at the stations, two clearly differentiated types of data are required. These data are available on the Barcelona City Council website and have been downloaded to the `data/` folder:
+
+- [Bicing station information](https://opendata-ajuntament.barcelona.cat/data/es/dataset/informacio-estacions-bicing)
+- [Bicing station status](https://opendata-ajuntament.barcelona.cat/data/es/dataset/estat-estacions-bicing)
+
+In addition, the dataset is enriched with historical weather data for Barcelona obtained from the **Open-Meteo** API (`backend/pipelines/etl/04_fetch_clima_bcn.py`).
+
+To prepare the modeling dataset, the script `backend/core/features.py` has been added, which loads a station's history from MySQL (with lags and cyclic temporal variables already calculated in SQL) and joins it with the weather DataFrame.
+
+---
+
+## What data do we have?
+
+```
+data/
+├── estado/                     ← Temporal history of each station (monthly CSVs)
+│   ├── 2021_01_Gener_BicingNou_ESTACIONS.csv
+│   ├── 2021_02_Febrer_BicingNou_ESTACIONS.csv
+│   ├── ...
+│   └── 2025_09_Setembre_BicingNou_ESTACIONS.csv
+│
+└── informacion/                ← Characteristics of each station (monthly CSVs)
+    ├── 2021_01_Gener_BicingNou_INFORMACIO.csv
+    ├── 2021_02_Febrer_BicingNou_INFORMACIO.csv
+    ├── ...
+    └── 2025_09_Setembre_BicingNou_INFORMACIO.csv
+```
+
+---
+
+## 1. 🕐 Station Status — Temporal Data
+
+These are monthly `.csv` files located in `data/estado/`, organized by year and month (from January **2021** to September **2025**). Each file captures the **real-time status** of all stations, recording multiple snapshots throughout the month.
+
+**Example file name:**
+```
+data/estado/2024_03_Marc_BicingNou_ESTACIONS.csv
+```
+
+### What does each record contain?
+
+| Field | Description |
+|---|---|
+| `station_id` | Unique identifier of the station |
+| `num_bikes_available` | Total bikes available to pick up |
+| `num_bikes_available_types.mechanical` | Mechanical bikes available |
+| `num_bikes_available_types.ebike` | Electric bikes available |
+| `num_docks_available` | Free docks to return |
+| `is_installed` | Whether the station is installed (1 = yes) |
+| `is_renting` | Whether it is active for renting (1 = yes) |
+| `is_returning` | Whether it accepts returns (1 = yes) |
+| `status` | Operational status (`IN_SERVICE`, etc.) |
+| `last_reported` | Timestamp of the last report (Unix) |
+
+### How does the temporal dimension look?
+
+```
+Time ──────────────────────────────────────────────────────────►
+
+  Jan    Dec    Jan    Dec    Jan    Dec    Jan   Dec    Jan    Sep
+ 2021   2021   2022   2022   2023   2023   2024   2024  2025   2025
+  │      │      │      │      │      │      │      │      │      │
+  ▼      ▼      ▼      ▼      ▼      ▼      ▼      ▼      ▼      ▼
+ [====2021====][====2022====][====2023====][====2024====][====2025====] ...
+```
+
+> 📅 In total: **63 monthly files** in `data/estado/`, covering **5 years** of history.
+
+---
+
+## 2. 📍 Station Information — Static Data
+
+Monthly `.csv` files in `data/informacion/` with the **fixed characteristics** of each station (although there may be small monthly variations, such as capacity or address changes). They describe where each station is and what it is like.
+
+**Example file:** `data/informacion/2024_03_Marc_BicingNou_INFORMACIO.csv`
+
+### What does it contain?
+
+| Field | Description |
+|---|---|
+| `station_id` | Unique identifier (join key with the other dataset) |
+| `name` | Name or address of the station |
+| `lat` / `lon` | Geographic coordinates |
+| `altitude` | Altitude in meters |
+| `address` | Postal address |
+| `capacity` | Total number of docks at the station |
+| `is_charging_station` | Whether it has charging for e-bikes |
+| `physical_configuration` | Station type (e.g. `ELECTRICBIKESTATION`) |
+
+### How do the two datasets relate?
+
+```
+Informacion_estaciones.csv          Estado estaciones (monthly)
+┌──────────────────────┐            ┌────────────────────────────┐
+│ station_id  │ lat/lon│            │ station_id │ num_bikes_... │
+│ station_id  │ capacit│  ◄──────►  │ station_id │ num_docks_... │
+│ station_id  │ address│  station_id│ station_id │ last_reported │
+└──────────────────────┘            └────────────────────────────┘
+       (where it is and what it is like)      (how it is at each moment)
+```
+
+---
+
+## 3. 🌤️ Weather Data — Open-Meteo
+
+To enrich the model and analyze the relationship between weather and Bicing usage, hourly data for Barcelona is downloaded via the **Open-Meteo** API (`backend/pipelines/etl/04_fetch_clima_bcn.py`).
+
+- **Coordinates:** latitude `41.3851`, longitude `2.1734` (Barcelona)
+- **Period:** `2021-01-01` to `2025-09-30`
+- **Hourly variables:** `temperature_2m`, `relative_humidity_2m`, `rain`, `cloud_cover`, `wind_speed_10m`
+- **Time zone:** `Europe/Madrid`
+
+**Fields generated by the script:**
+
+| Field | Description |
+|---|---|
+| `date` | Record date (`YYYY-MM-DD`) |
+| `hour` | Record hour (`HH`) |
+| `is_holiday` | `True` if the date is a holiday in Catalonia, using the `holidays` package |
+| `temperature_c` | Temperature at 2 meters in degrees Celsius |
+| `relative_humidity_2m` | Relative humidity at 2 meters (%) |
+| `rain` | Rainfall in mm |
+| `cloud_cover` | Cloud cover (%) |
+| `wind_speed_10m` | Wind speed at 10 meters (km/h) |
+
+
+**Script for joining with historical data:** `backend/core/features.py`
+
+- Reads the `estado` table from MySQL filtering by `station_id`, calculating the lags (`lag_nbm`, `lag_nbe`) and cyclic temporal variables (`hour_sin/cos`, `dow_sin/cos`, `year_sin/cos`) in SQL.
+- Generates `date` and `hour` columns from `datetime`.
+- Calls `fetch_clima_barcelona()` from `backend/pipelines/etl/04_fetch_clima_bcn.py`.
+- Performs a `merge` by `date` and `hour` between the history and the weather, and reindexes to a fixed 5-minute frequency (marking the imputed rows in `is_imputed`).
+
+---
+
+## Why do we need this data?
+
+| Need | Dataset / source that solves it |
+|---|---|
+| Know **where** each station is | `data/informacion/` |
+| Know the total **capacity** of docks | `data/informacion/` |
+| See the **availability history** | `data/estado/` (monthly) |
+| Train a **prediction** model | `data/estado/` + weather |
+| Filter by **bike type** (mechanical / electric) | `data/estado/` |
+| Incorporate the impact of **weather** | Open-Meteo API → `backend/pipelines/etl/04_fetch_clima_bcn.py` |
+| Join history and weather by station | `backend/core/features.py` |
+| Train and version models per station | `backend/pipelines/ml/train_all_stations.py` + MLflow |
+
+---

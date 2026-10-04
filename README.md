@@ -151,12 +151,12 @@ Station information  +  Station status  +  Weather
 │   └── 📂 informacion/                  ← Station characteristics
 │
 ├── 📂 docs/                             ← Master's deliverables
-│   └── 📂 entregas/
-│       ├── 📄 01_idea_producto.md       ← Product description
-│       ├── 📄 02_datos_necesarios.md    ← Data description
-│       ├── 📄 03_modelo_datos.md        ← Data model, Gold layer, API & MLflow
-│       ├── 📄 04_analisis_modelado.md   ← Modeling strategy
-│       └── 📄 05_diseño_frontal.md      ← Frontend design
+│   └── 📂 deliverables/
+│       ├── 📄 01_product_idea.md       ← Product description
+│       ├── 📄 02_required_data.md      ← Data description
+│       ├── 📄 03_data_model.md         ← Data model, Gold layer, API & MLflow
+│       ├── 📄 04_modeling_analysis.md  ← Modeling strategy
+│       └── 📄 05_frontend_design.md   ← Frontend design
 │
 ├── 📂 frontend/                         ← User interface in React + Vite
 │   ├── 📄 package.json
