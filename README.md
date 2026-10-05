@@ -186,7 +186,7 @@ Station information  +  Station status  +  Weather
 │   │   │   ├── train_all_stations.py  ← Trains one model per station and registers it in MLflow
 │   │   │   └── reset_mlflow.py        ← Resets experiments and registered station models
 │   │   └── etl/                        ← Bronze → Silver load (MySQL)
-│   │       ├── 01_create_db.py
+│   │       ├── 01_setup_schema.py
 │   │       ├── 02_insert_informacion.py
 │   │       ├── 03_insert_estado.py
 │   │       └── 04_fetch_clima_bcn.py

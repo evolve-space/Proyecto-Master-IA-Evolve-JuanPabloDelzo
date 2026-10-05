@@ -36,7 +36,7 @@ Bronze (sources)      ETL → MySQL            Gold (analytical)
 | Layer | Description | Location / implementation |
 |---|---|---|
 | **Bronze** | Original untransformed data: monthly CSVs from the City Council and JSON response from Open-Meteo. | `data/informacion/`, `data/estado/`, `backend/pipelines/etl/04_fetch_clima_bcn.py` |
-| **Silver** | Clean, validated, and modeled data in MySQL with PKs, FKs, and correct types. | `Bicing` database (`backend/pipelines/etl/01_create_db.py`, `backend/pipelines/etl/02_insert_informacion.py`, `backend/pipelines/etl/03_insert_estado.py`) |
+| **Silver** | Clean, validated, and modeled data in MySQL with PKs, FKs, and correct types. | `Bicing` database (`backend/pipelines/etl/01_setup_schema.py`, `backend/pipelines/etl/02_insert_informacion.py`, `backend/pipelines/etl/03_insert_estado.py`) |
 | **Gold** | Prediction results for bicycles and docks using time series with deep learning, based on MySQL and weather data. | REST API that exposes predictions in JSON; consumed by the React frontend. |
 
 ---
@@ -95,7 +95,7 @@ The script `backend/pipelines/etl/04_fetch_clima_bcn.py` queries the Open-Meteo 
 
 The `Bicing` database constitutes the Silver layer. Here the data has been cleaned, typed, deduplicated, and related through primary and foreign keys. The scripts `02_insert_informacion.py` and `03_insert_estado.py` load the data from Bronze to this layer.
 
-The `Bicing` database is created with `backend/pipelines/etl/01_create_db.py` using `utf8mb4_unicode_ci` encoding. Credentials are read from `.env` through `backend/core/db.py`.
+The `Bicing` database is created with `backend/pipelines/etl/01_setup_schema.py` using `utf8mb4_unicode_ci` encoding. Credentials are read from `.env` through `backend/core/db.py`.
 
 ### 3.1 `informacion` table
 
