@@ -1,7 +1,3 @@
-import importlib.util
-import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
@@ -60,13 +56,10 @@ class LSTMbicis:
 
     @staticmethod
     def _import_bicis():
-        """Importa dinámicamente la función `bicis` desde backend/core/features.py."""
-        module_path = Path(__file__).resolve().parent / "features.py"
-        spec = importlib.util.spec_from_file_location("features", module_path)
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["features"] = module
-        spec.loader.exec_module(module)
-        return module.bicis
+        """Importa la función `bicis` desde backend/core/features.py."""
+        from .features import bicis
+
+        return bicis
 
     def preparar_datos(self, df: pd.DataFrame):
         """Codifica variables categóricas/booleanas y separa features y targets.
