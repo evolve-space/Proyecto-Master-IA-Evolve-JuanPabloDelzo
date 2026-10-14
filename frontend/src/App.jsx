@@ -46,8 +46,8 @@ const translations = {
     footerLegendPin: '3 más cercanas',
     footerLegendDot: 'resto de estaciones',
     errorFallback: 'Error desconocido',
-    errorTimeout: 'La petición ha tardado demasiado. Asegúrate de que informacion_api.py esté en ejecución.',
-    errorConnection: 'No se pudo conectar con la API. Asegúrate de ejecutar: python backend/api/informacion_api.py',
+    errorTimeout: 'La petición ha tardado demasiado. Asegúrate de que backend.api.app esté en ejecución.',
+    errorConnection: 'No se pudo conectar con la API. Asegúrate de ejecutar: python -m backend.api.app',
     months: ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'],
   },
   ca: {
@@ -88,8 +88,8 @@ const translations = {
     footerLegendPin: '3 més properes',
     footerLegendDot: 'resta d\'estacions',
     errorFallback: 'Error desconegut',
-    errorTimeout: 'La petició ha trigat massa. Assegura\'t que informacion_api.py estigui en execució.',
-    errorConnection: "No s'ha pogut connectar amb l'API. Assegura't d'executar: python backend/api/informacion_api.py",
+    errorTimeout: 'La petició ha trigat massa. Assegura\'t que backend.api.app estigui en execució.',
+    errorConnection: "No s'ha pogut connectar amb l'API. Assegura't d'executar: python -m backend.api.app",
     months: ['Gen', 'Feb', 'Mar', 'Abr', 'Maig', 'Jun', 'Jul', 'Ago', 'Set', 'Oct', 'Nov', 'Des'],
   },
   en: {
@@ -130,8 +130,8 @@ const translations = {
     footerLegendPin: '3 nearest',
     footerLegendDot: 'other stations',
     errorFallback: 'Unknown error',
-    errorTimeout: 'The request took too long. Make sure informacion_api.py is running.',
-    errorConnection: 'Could not connect to the API. Make sure to run: python backend/api/informacion_api.py',
+    errorTimeout: 'The request took too long. Make sure backend.api.app is running.',
+    errorConnection: 'Could not connect to the API. Make sure to run: python -m backend.api.app',
     months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
   },
 };
@@ -771,7 +771,7 @@ function App() {
       if (!res.ok) throw new Error(data.error || t.errorFallback);
 
       // Log de seguridad en consola con los valores no redondeados
-      // recibidos desde informacion_api.py (antes de mostrarlos redondeados).
+      // recibidos desde backend.api.app (antes de mostrarlos redondeados).
       console.group('Predicción recibida (valores raw) - estación', stationId);
       data.predictions?.forEach((p) => {
         console.log(

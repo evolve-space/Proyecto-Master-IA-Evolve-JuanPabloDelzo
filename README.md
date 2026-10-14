@@ -171,8 +171,10 @@ Station information  +  Station status  +  Weather
 │
 ├── 📂 backend/                          ← Backend services
 │   ├── 📂 api/                          ← REST APIs (delivery layer)
-│   │   ├── informacion_api.py         ← Stations + predictions (port 5002)
-│   │   └── bicis_pred_api.py          ← Standalone predictions API (port 5001)
+│   │   ├── __init__.py                ← Flask application factory
+│   │   ├── app.py                     ← Unified API entry point (port 5002)
+│   │   ├── routes.py                  ← HTTP endpoints
+│   │   └── services.py                ← Station and prediction services
 │   │
 │   ├── 📂 core/                         ← Shared business logic used by API and scripts
 │   │   ├── db.py                      ← MySQL credentials and connection helpers
@@ -211,13 +213,14 @@ Station information  +  Station status  +  Weather
 
 2. **Backend** (from the project root):
    ```bash
-   python backend/api/informacion_api.py
+   python -m backend.api.app
    ```
-   Exposes on port **5002**:
+   The unified API exposes on port **5002**:
+   - `GET http://127.0.0.1:5002/api/health`
    - `GET http://127.0.0.1:5002/api/informacion`
    - `POST http://127.0.0.1:5002/api/predict`
 
-   `backend/api/bicis_pred_api.py` is a standalone alternative on port **5001**.
+   `API_HOST` and `API_PORT` environment variables can override the default bind address and port.
 
 3. **Frontend**:
    ```bash

@@ -197,7 +197,7 @@ The Gold layer **does not persist results in MySQL tables**, but in the **MLflow
 
 Each registered model includes, in addition to the Keras model, the `scaler_x`, `scaler_y`, and `feature_cols` scalers as artifacts, so that the API can replicate exactly the preprocessing without retraining.
 
-The React frontend consumes station information and predictions through the REST API `backend/api/informacion_api.py` (port 5002). The API delegates to `backend/core/mlflow_client.py` the search for the run and the cached loading of models/scalers.
+The React frontend consumes station information and predictions through the REST API `backend/api/app.py` (port 5002). The API delegates to `backend/core/mlflow_client.py` the search for the run and the cached loading of models/scalers.
 
 ### 5.1 `backend/core/features.py` — feature construction
 
@@ -261,7 +261,7 @@ python backend/pipelines/ml/train_all_stations.py --reentrenar-todos  # forces f
 
 ### 5.4 Implemented API
 
-The REST API is implemented in `backend/api/informacion_api.py` (Flask, port 5002) and exposes the endpoints consumed by the frontend. There is also a standalone alternative API in `backend/api/bicis_pred_api.py` (port 5001).
+The unified REST API is implemented as a Flask application factory in `backend/api/__init__.py`, with its entry point in `backend/api/app.py` (port 5002). HTTP routes live in `backend/api/routes.py`, while station queries and prediction orchestration live in `backend/api/services.py`. Both station information and predictions are exposed by this single process and port.
 
 #### `GET /api/informacion`
 
@@ -315,7 +315,7 @@ Silver (MySQL: estado + informacion) ──┐
                           + scaler_x / scaler_y / feature_cols artifacts
                                         │
                                         ▼
-              API REST (backend/api/informacion_api.py): load model from MLflow
+              API REST (backend/api/app.py): load model from MLflow
                                         │
                                         ▼
                     Prediction nbm / nbe at 5 and 10 minutes ahead
@@ -329,7 +329,7 @@ Silver (MySQL: estado + informacion) ──┐
 - `backend/core/features.py` consumes `estado` and `informacion` (FK) from the Silver layer, and weather from Open-Meteo.
 - `backend/core/model.py` consumes the `DataFrame` from `backend/core/features.py` and trains/predicts.
 - `backend/pipelines/ml/train_all_stations.py` registers each trained model in MLflow under `est_{station_id}` together with its scalers.
-- `backend/api/informacion_api.py` exposes HTTP endpoints and delegates to `backend/core/mlflow_client.py` and `backend/core/model.py` to load the model, scalers, and historical data from MLflow/MySQL and serve predictions without retraining.
+- `backend/api/app.py` exposes HTTP endpoints and delegates to `backend/core/mlflow_client.py` and `backend/core/model.py` to load the model, scalers, and historical data from MLflow/MySQL and serve predictions without retraining.
 - The React frontend consumes the endpoints at `http://localhost:5002`.
 
 ### 5.7 Example consumption from React (current)
